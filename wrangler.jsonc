@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "robonest-3d",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "robonest-3d" }],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "robonest-3d",
+      // Placeholder: replace with the ID printed by `wrangler d1 create robonest-3d`
+      // before the first deploy. Local dev and tests ignore this value.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "drizzle/migrations"
+    }
+  ],
+  "r2_buckets": [
+    // Public catalog media (product images, GLB previews). Served through the
+    // app's /media route, never through a public bucket URL.
+    { "binding": "MEDIA", "bucket_name": "robonest-3d-media" },
+    // Private files: purchased digital models and customer uploads. Only ever
+    // streamed by authorization-checked route handlers.
+    { "binding": "PRIVATE_FILES", "bucket_name": "robonest-3d-private" }
+  ],
+  "images": { "binding": "IMAGES" },
+  "vars": {
+    "SITE_URL": "http://localhost:3000"
+  },
+  "observability": { "enabled": true }
+}

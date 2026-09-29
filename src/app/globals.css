@@ -1,26 +1,162 @@
 @import "tailwindcss";
 
+/* ==========================================================================
+   RoboNest.3D design tokens
+   Every colour used by components comes from these variables. The storefront
+   uses the dark brand theme; the admin area opts into [data-theme="light"]
+   for dense data work. All text pairs meet WCAG 2.2 AA (see TESTING.md).
+   ========================================================================== */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --rn-bg: #0c0a14;
+  --rn-surface: #16131f;
+  --rn-surface-2: #1e1a2b;
+  --rn-surface-3: #282338;
+  --rn-border: #2e2942;
+  --rn-border-strong: #6e6784;
+  --rn-text: #f5f3fb;
+  --rn-text-muted: #a8a1bd;
+  --rn-primary: #7e22ce;
+  --rn-primary-hover: #6b1bb0;
+  --rn-primary-soft: rgb(126 34 206 / 0.16);
+  --rn-primary-text: #c79bff;
+  --rn-on-primary: #ffffff;
+  --rn-accent: #5eead4;
+  --rn-success: #4ade80;
+  --rn-success-soft: rgb(74 222 128 / 0.12);
+  --rn-warning: #fbbf24;
+  --rn-warning-soft: rgb(251 191 36 / 0.12);
+  --rn-danger: #fb7185;
+  --rn-danger-soft: rgb(251 113 133 / 0.12);
+  --rn-info: #7dd3fc;
+  --rn-info-soft: rgb(125 211 252 / 0.12);
+  --rn-focus: #d8b4fe;
+  --rn-overlay: rgb(5 4 10 / 0.72);
+  --rn-grid-line: rgb(199 155 255 / 0.06);
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  --rn-bg: #f7f6fb;
+  --rn-surface: #ffffff;
+  --rn-surface-2: #f1eff7;
+  --rn-surface-3: #e7e3f1;
+  --rn-border: #e2deec;
+  --rn-border-strong: #8a849c;
+  --rn-text: #17131f;
+  --rn-text-muted: #595370;
+  --rn-primary: #7e22ce;
+  --rn-primary-hover: #6b1bb0;
+  --rn-primary-soft: rgb(126 34 206 / 0.09);
+  --rn-primary-text: #6b21a8;
+  --rn-on-primary: #ffffff;
+  --rn-accent: #0f766e;
+  --rn-success: #166534;
+  --rn-success-soft: rgb(22 101 52 / 0.09);
+  --rn-warning: #92400e;
+  --rn-warning-soft: rgb(146 64 14 / 0.1);
+  --rn-danger: #9f1239;
+  --rn-danger-soft: rgb(159 18 57 / 0.08);
+  --rn-info: #075985;
+  --rn-info-soft: rgb(7 89 133 / 0.08);
+  --rn-focus: #7e22ce;
+  --rn-overlay: rgb(23 19 31 / 0.5);
+  --rn-grid-line: rgb(126 34 206 / 0.05);
+  color-scheme: light;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--rn-bg);
+  --color-surface: var(--rn-surface);
+  --color-surface-2: var(--rn-surface-2);
+  --color-surface-3: var(--rn-surface-3);
+  --color-border: var(--rn-border);
+  --color-border-strong: var(--rn-border-strong);
+  --color-text: var(--rn-text);
+  --color-muted: var(--rn-text-muted);
+  --color-primary: var(--rn-primary);
+  --color-primary-hover: var(--rn-primary-hover);
+  --color-primary-soft: var(--rn-primary-soft);
+  --color-primary-text: var(--rn-primary-text);
+  --color-on-primary: var(--rn-on-primary);
+  --color-accent: var(--rn-accent);
+  --color-success: var(--rn-success);
+  --color-success-soft: var(--rn-success-soft);
+  --color-warning: var(--rn-warning);
+  --color-warning-soft: var(--rn-warning-soft);
+  --color-danger: var(--rn-danger);
+  --color-danger-soft: var(--rn-danger-soft);
+  --color-info: var(--rn-info);
+  --color-info-soft: var(--rn-info-soft);
+  --color-focus: var(--rn-focus);
+  --color-overlay: var(--rn-overlay);
+
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display-face), var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.25rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--rn-bg);
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--rn-bg);
+  color: var(--rn-text);
+  font-family: var(--font-sans);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Arabic uses its own typeface for both body and display text. */
+:lang(ar) body,
+:lang(ar) .font-display {
+  font-family: var(--font-arabic), var(--font-body), ui-sans-serif, system-ui, sans-serif;
+}
+:lang(ar) body {
+  line-height: 1.75;
+}
+
+/* Visible, consistent keyboard focus everywhere (WCAG 2.4.7 / 2.4.11). */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--rn-focus);
+  outline-offset: 2px;
+  border-radius: 0.375rem;
+}
+
+::selection {
+  background: var(--rn-primary);
+  color: var(--rn-on-primary);
+}
+
+/* Blueprint grid used sparingly as a technical backdrop. */
+.bg-blueprint {
+  background-image:
+    linear-gradient(var(--rn-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--rn-grid-line) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Numbers (prices, order numbers, phones) stay left-to-right inside RTL text. */
+.ltr-nums {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

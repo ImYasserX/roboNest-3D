@@ -39,3 +39,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# cloudflare / opennext
+/.open-next/
+/.wrangler/
+.dev.vars*
+
+# playwright
+/test-results/
+/playwright-report/
+/e2e/.artifacts/
+.admin-insert.sql
