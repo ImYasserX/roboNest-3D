@@ -110,3 +110,4 @@ scripts/                  setup, seed, i18n check
 tests/                    unit + integration (Vitest)
 e2e/                      Playwright
 ```
+# roboNest-3D
