@@ -6,7 +6,8 @@ import { safeRedirectPath } from "@/lib/safe-redirect";
 import { alternates } from "@/lib/seo";
 import { Link } from "@/i18n/navigation";
 import { RegisterForm } from "@/components/account/auth-forms";
-import { Card, Container } from "@/components/ui/misc";
+import { Alert, Card, Container } from "@/components/ui/misc";
+import { getPhoneVerifier } from "@/server/sms";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/register">): Promise<Metadata> {
   const { locale } = await params;
@@ -20,6 +21,8 @@ export default async function RegisterPage({ params, searchParams }: PageProps<"
   const next = safeRedirectPath((await searchParams).next, "/account");
   if (await getCurrentUser()) redirect(`/${locale}/account`);
   const t = await getTranslations("auth");
+  // Accounts require a verified phone; without an SMS provider nobody can register.
+  const smsReady = (await getPhoneVerifier()) !== null;
   return (
     <Container className="max-w-md py-12">
       <Card className="space-y-6 p-6 sm:p-8">
@@ -27,7 +30,7 @@ export default async function RegisterPage({ params, searchParams }: PageProps<"
           <h1 className="font-display text-2xl font-bold">{t("registerTitle")}</h1>
           <p className="text-muted">{t("registerText")}</p>
         </div>
-        <RegisterForm next={next} />
+        {smsReady ? <RegisterForm next={next} /> : <Alert tone="warning" title={t("registrationUnavailableTitle")}>{t("registrationUnavailableText")}</Alert>}
         <p className="border-t border-border pt-4 text-sm text-muted">
           {t("haveAccount")}{" "}
           <Link href={`/login?next=${encodeURIComponent(next)}`} className="font-semibold text-primary-text underline">

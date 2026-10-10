@@ -4,12 +4,16 @@ import { FormPendingContext, useActionForm } from "@/components/ui/use-action-fo
 
 import { useTranslations } from "next-intl";
 import {
+  cancelVerificationAction,
   changePasswordAction,
+  forgotPasswordAction,
   loginAction,
   registerAction,
+  resendCodeAction,
   resetPasswordAction,
+  resetWithCodeAction,
   updateProfileAction,
-
+  verifyPhoneAction,
 } from "@/server/actions/auth";
 import { SelectField, TextField } from "@/components/ui/field";
 import { Alert } from "@/components/ui/misc";
@@ -126,5 +130,89 @@ export function ProfileForm({ name, locale }: { name: string; locale: string }) 
       </SelectField>
       <SubmitButton>{tc("save")}</SubmitButton>
     </form></FormPendingContext.Provider>
+  );
+}
+
+/** SMS code entry for registration, first sign-in of an unverified number, or password recovery. */
+export function VerifyCodeForm({ next, maskedPhone, channel = "SMS", smsFallback = false }: { next?: string; maskedPhone: string; channel?: "SMS" | "WHATSAPP"; smsFallback?: boolean }) {
+  const t = useTranslations("auth");
+  const err = useErrorText();
+  const { state, pending, formProps } = useActionForm(verifyPhoneAction, null);
+  const resend = useActionForm(resendCodeAction, null);
+  if (state?.error === "already_registered") {
+    return (
+      <Alert tone="info" title={t("alreadyRegisteredTitle")}>
+        <p>{t("alreadyRegisteredText")}</p>
+        <p className="mt-2 flex flex-wrap gap-3">
+          <Link href="/login" className="font-semibold underline">{t("signIn")}</Link>
+          <Link href="/forgot-password" className="font-semibold underline">{t("forgot")}</Link>
+        </p>
+      </Alert>
+    );
+  }
+  return (
+    <div className="space-y-4">
+      <p className="text-muted">{channel === "WHATSAPP" ? t("codeSentToWhatsapp") : t("codeSentTo")} <bdi className="ltr-nums font-semibold text-text">{maskedPhone}</bdi></p>
+      <FormPendingContext.Provider value={pending}>
+        <form {...formProps} className="space-y-4" noValidate>
+          {state?.error ? <Alert tone="danger">{err(state.error)}</Alert> : null}
+          {next ? <input type="hidden" name="next" value={next} /> : null}
+          <TextField id="code" name="code" label={t("code")} hint={t("codeHint")} required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]*" maxLength={10} dir="ltr" />
+          <SubmitButton size="lg" className="w-full" pendingLabel={t("verifying")}>{t("verify")}</SubmitButton>
+        </form>
+      </FormPendingContext.Provider>
+      <FormPendingContext.Provider value={resend.pending}>
+        <form {...resend.formProps} className="space-y-2">
+          {resend.state?.success ? <Alert tone="success">{t("codeResent")}</Alert> : null}
+          {resend.state?.error ? <Alert tone="danger">{err(resend.state.error)}</Alert> : null}
+          <div className="flex flex-wrap gap-2">
+            <SubmitButton variant="ghost" size="sm">{t("resend")}</SubmitButton>
+            {smsFallback ? (
+              <SubmitButton variant="ghost" size="sm" name="channel" value="SMS">{t("sendBySms")}</SubmitButton>
+            ) : null}
+          </div>
+        </form>
+      </FormPendingContext.Provider>
+      <form action={cancelVerificationAction}>
+        <SubmitButton variant="ghost" size="sm">{t("startOver")}</SubmitButton>
+      </form>
+    </div>
+  );
+}
+
+export function ForgotPhoneForm() {
+  const t = useTranslations("auth");
+  const err = useErrorText();
+  const { state, pending, formProps } = useActionForm(forgotPasswordAction, null);
+  return (
+    <FormPendingContext.Provider value={pending}>
+      <form {...formProps} className="space-y-4" noValidate>
+        {state?.error ? <Alert tone="danger">{err(state.error)}</Alert> : null}
+        <TextField id="phone" name="phone" type="tel" inputMode="tel" dir="ltr" autoComplete="tel" label={t("phone")} required maxLength={24} />
+        <SubmitButton size="lg" className="w-full" pendingLabel={t("sendingCode")}>{t("sendCode")}</SubmitButton>
+      </form>
+    </FormPendingContext.Provider>
+  );
+}
+
+export function NewPasswordWithCodeForm() {
+  const t = useTranslations("auth");
+  const err = useErrorText();
+  const { state, pending, formProps } = useActionForm(resetWithCodeAction, null);
+  if (state?.success) {
+    return (
+      <Alert tone="success" title={t("resetDone")}>
+        <Link href="/login" className="font-semibold underline">{t("signIn")}</Link>
+      </Alert>
+    );
+  }
+  return (
+    <FormPendingContext.Provider value={pending}>
+      <form {...formProps} className="space-y-4" noValidate>
+        {state?.error ? <Alert tone="danger">{state.error === "password_too_short" ? t("errors.password_too_short") : err(state.error)}</Alert> : null}
+        <TextField id="password" name="password" type="password" autoComplete="new-password" label={t("newPassword")} hint={t("passwordHint")} required minLength={8} maxLength={128} />
+        <SubmitButton size="lg" className="w-full">{t("resetSubmit")}</SubmitButton>
+      </form>
+    </FormPendingContext.Provider>
   );
 }

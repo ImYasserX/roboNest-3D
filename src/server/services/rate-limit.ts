@@ -27,8 +27,16 @@ export const RATE_LIMITS = {
   uploadIp: { limit: 150, windowSeconds: 60 * 60 },
   customRequest: { limit: 5, windowSeconds: 60 * 60 },
   customRequestIp: { limit: 40, windowSeconds: 60 * 60 },
-  contact: { limit: 20, windowSeconds: 60 * 60 },
-  orderLookup: { limit: 30, windowSeconds: 15 * 60 },
+  contact: { limit: 10, windowSeconds: 60 * 60 },
+  contactEmail: { limit: 3, windowSeconds: 60 * 60 },
+  // Phone verification: SMS sends cost money and can be abused to spam numbers.
+  smsSendPhone: { limit: 3, windowSeconds: 60 * 60 },
+  smsSendIp: { limit: 20, windowSeconds: 60 * 60 },
+  smsCheckIp: { limit: 30, windowSeconds: 15 * 60 },
+  depositSubmit: { limit: 20, windowSeconds: 60 * 60 },
+  paymentCallback: { limit: 300, windowSeconds: 10 * 60 },
+  testEmail: { limit: 5, windowSeconds: 10 * 60 },
+  notificationTest: { limit: 5, windowSeconds: 10 * 60 },
   download: { limit: 60, windowSeconds: 60 * 60 },
   quoteResponse: { limit: 30, windowSeconds: 60 * 60 },
 } satisfies Record<string, RateLimitRule>;

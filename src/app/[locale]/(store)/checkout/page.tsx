@@ -8,6 +8,8 @@ import { getDb } from "@/server/db/client";
 import { addresses } from "@/server/db/schema";
 import { getCartView } from "@/server/services/cart";
 import { listDeliveryZones } from "@/server/services/delivery";
+import { loadDepositConfig } from "@/server/services/orders";
+import { getDepositProvider } from "@/server/payments";
 import { formatIraqiPhone } from "@/lib/phone";
 import { CartLines } from "@/components/cart/cart-lines";
 import { CheckoutForm } from "@/components/checkout/checkout-form";
@@ -42,7 +44,8 @@ export default async function CheckoutPage({ params }: PageProps<"/[locale]/chec
     );
   }
 
-  const zones = await listDeliveryZones(db, { activeOnly: true });
+  const [zones, provider] = await Promise.all([listDeliveryZones(db, { activeOnly: true }), getDepositProvider()]);
+  const depositConfig = await loadDepositConfig(db, provider !== null);
   const saved = user ? (await db.select().from(addresses).where(eq(addresses.userId, user.id)).orderBy(desc(addresses.isDefault), desc(addresses.updatedAt)).limit(1))[0] : undefined;
 
   return (
@@ -51,7 +54,8 @@ export default async function CheckoutPage({ params }: PageProps<"/[locale]/chec
       <CheckoutForm
         // A fresh key per page render: double clicks, retries and refresh-resubmits map to one order.
         idempotencyKey={crypto.randomUUID()}
-        zones={zones.map((z) => ({ id: z.id, nameEn: z.nameEn, nameAr: z.nameAr, fee: z.fee, etaDaysMin: z.etaDaysMin, etaDaysMax: z.etaDaysMax, areas: z.areas.map((a) => ({ id: a.id, nameEn: a.nameEn, nameAr: a.nameAr, fee: a.fee })) }))}
+        zones={zones.map((z) => ({ id: z.id, nameEn: z.nameEn, nameAr: z.nameAr, areas: z.areas.map((a) => ({ id: a.id, nameEn: a.nameEn, nameAr: a.nameAr })) }))}
+        depositPayable={depositConfig.onlineAvailable || depositConfig.manualAvailable}
         subtotal={cart.subtotal}
         hasPhysical={cart.hasPhysical}
         hasDigital={cart.hasDigital}

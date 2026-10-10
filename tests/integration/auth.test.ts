@@ -5,7 +5,9 @@ import { hashPassword } from "@/server/auth/password";
 import { totpCode, currentCounter } from "@/server/auth/totp";
 import { createAdminSession, createCustomerSession, validateAdminSession, validateCustomerSession, ADMIN_IDLE_TIMEOUT_MS } from "@/server/auth/sessions";
 import { authenticateAdmin, beginTotpEnrollment, confirmTotpEnrollment, createAdminUser, updateAdminUser, verifyAdminSecondFactor, MAX_FAILED_LOGINS } from "@/server/services/admin-auth";
-import { authenticateCustomer, changeCustomerPassword, createPasswordResetToken, registerCustomer, resetPasswordWithToken } from "@/server/services/customer-auth";
+import { authenticateCustomer, changeCustomerPassword, createPasswordResetToken, resetPasswordWithToken } from "@/server/services/customer-auth";
+import { normalizeIraqiPhone } from "@/lib/phone";
+import { users } from "@/server/db/schema";
 import { consumeRateLimit } from "@/server/services/rate-limit";
 import { auditInsert } from "@/server/services/audit";
 import { startPlatform, type TestPlatform } from "../support/platform";
@@ -23,12 +25,19 @@ async function makeAdmin(role: "SUPER_ADMIN" | "OPERATIONS" = "OPERATIONS") {
   return a;
 }
 
+/** A customer whose phone was verified (the SMS flow itself is covered in phone-verification.test.ts). */
+async function registerCustomer(_db: unknown, input: { name: string; phone: string; password: string }, locale: string) {
+  const [u] = await p.db
+    .insert(users)
+    .values({ name: input.name, phone: normalizeIraqiPhone(input.phone)!, passwordHash: await hashPassword(input.password), phoneVerifiedAt: new Date(), locale })
+    .returning({ id: users.id });
+  return { ok: true as const, userId: u.id };
+}
+
 describe("customer accounts", () => {
-  it("registers with a normalized phone and refuses duplicates", async () => {
-    const r = await registerCustomer(p.db, { name: "Hussein", phone: "0781 234 5678", password: "longenough" }, "ar");
-    expect(r.ok).toBe(true);
-    expect(await registerCustomer(p.db, { name: "Other", phone: "+9647812345678", password: "longenough" }, "ar")).toMatchObject({ ok: false, error: "phone_taken" });
-    expect(await registerCustomer(p.db, { name: "X", phone: "123", password: "short" }, "ar")).toMatchObject({ ok: false, error: "invalid_input" });
+  it("refuses duplicate accounts for the same normalized phone at the database level", async () => {
+    await registerCustomer(p.db, { name: "Hussein", phone: "0781 234 5678", password: "longenough" }, "ar");
+    await expect(registerCustomer(p.db, { name: "Other", phone: "+9647812345678", password: "longenough" }, "ar")).rejects.toThrow();
   });
 
   it("returns the same generic error for unknown phone and wrong password", async () => {

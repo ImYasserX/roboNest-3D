@@ -5,7 +5,8 @@ import { requireAdminPage } from "@/server/auth/current";
 import { getDb } from "@/server/db/client";
 import { adminUsers } from "@/server/db/schema";
 import { createAdminAction, resetAdminTotpAction, setAdminPasswordAction, updateAdminAction } from "@/server/actions/admin/manage";
-import { ADMIN_ROLES } from "@/lib/domain";
+import { ASSIGNABLE_ADMIN_ROLES } from "@/lib/domain";
+import { canManageAdmin } from "@/lib/permissions";
 import { formatDate } from "@/lib/localize";
 import { ActionForm } from "@/components/admin/action-form";
 import { AdminPageHeader, Panel } from "@/components/admin/ui";
@@ -41,16 +42,19 @@ export default async function AdminsPage({ params }: PageProps<"/[locale]/admin/
               <Badge tone="primary">{tr(a.role)}</Badge>
               <Badge tone={a.totpEnabled ? "success" : "warning"}>{t("totp")}: {a.totpEnabled ? tc("yes") : tc("no")}</Badge>
               <Badge tone={a.status === "ACTIVE" ? "success" : "danger"}>{a.status === "ACTIVE" ? tc("active") : tc("inactive")}</Badge>
-              <span className="text-xs text-muted">{t("lastLogin")}: {a.lastLoginAt ? formatDate(a.lastLoginAt, lang, true) : "—"}</span>
+              <span className="text-xs text-muted">{t("lastLogin")}: {a.lastLoginAt ? formatDate(a.lastLoginAt, lang, true) : tc("never")}</span>
             </div>
+            {a.role === "OWNER" ? <p className="mb-2 text-sm text-muted">{t("ownerProtected")}</p> : null}
+            {canManageAdmin(me.role, a.role) ? (
             <details>
               <summary className="cursor-pointer text-sm font-medium text-primary-text">{tc("edit")}</summary>
               <div className="mt-3 grid gap-4 md:grid-cols-2">
+                {a.role === "OWNER" ? <div /> : (
                 <ActionForm action={updateAdminAction} errorNamespace="admin.admins">
                   <input type="hidden" name="id" value={a.id} />
                   <TextField id={`dn-${a.id}`} name="displayName" label={t("displayName")} defaultValue={a.displayName} required maxLength={60} />
                   <SelectField id={`role-${a.id}`} name="role" label={t("role")} defaultValue={a.role}>
-                    {ADMIN_ROLES.map((r) => <option key={r} value={r}>{tr(r)}</option>)}
+                    {ASSIGNABLE_ADMIN_ROLES.map((r) => <option key={r} value={r}>{tr(r)}</option>)}
                   </SelectField>
                   <SelectField id={`status-${a.id}`} name="status" label={t("status")} defaultValue={a.status}>
                     <option value="ACTIVE">{tc("active")}</option>
@@ -58,6 +62,7 @@ export default async function AdminsPage({ params }: PageProps<"/[locale]/admin/
                   </SelectField>
                   <SubmitButton variant="secondary">{tc("save")}</SubmitButton>
                 </ActionForm>
+                )}
                 <div className="space-y-4">
                   <ActionForm action={setAdminPasswordAction} errorNamespace="admin.admins">
                     <input type="hidden" name="id" value={a.id} />
@@ -74,6 +79,7 @@ export default async function AdminsPage({ params }: PageProps<"/[locale]/admin/
                 </div>
               </div>
             </details>
+            ) : null}
           </li>
         ))}
       </ul>
@@ -82,7 +88,7 @@ export default async function AdminsPage({ params }: PageProps<"/[locale]/admin/
           <TextField id="username" name="username" label={t("username")} hint={t("usernameHint")} required dir="ltr" autoCapitalize="none" maxLength={32} />
           <TextField id="displayName" name="displayName" label={t("displayName")} required maxLength={60} />
           <SelectField id="role" name="role" label={t("role")} defaultValue="OPERATIONS">
-            {ADMIN_ROLES.map((r) => <option key={r} value={r}>{tr(r)}</option>)}
+            {ASSIGNABLE_ADMIN_ROLES.map((r) => <option key={r} value={r}>{tr(r)}</option>)}
           </SelectField>
           <TextField id="password" name="password" type="password" autoComplete="new-password" label={t("password")} hint={t("passwordHint")} required minLength={12} />
           <div><SubmitButton>{t("add")}</SubmitButton></div>

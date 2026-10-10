@@ -4,6 +4,8 @@ import { requireAdminPage } from "@/server/auth/current";
 import { getDb } from "@/server/db/client";
 import { saveCustomPrintOptionsAction, saveHomepageAction, saveStoreAction } from "@/server/actions/admin/manage";
 import { getSettings } from "@/server/services/settings";
+import { BUSINESS } from "@/lib/business";
+import { pickText } from "@/lib/localize";
 import { formatIraqiPhone } from "@/lib/phone";
 import { ActionForm } from "@/components/admin/action-form";
 import { AdminPageHeader, Panel } from "@/components/admin/ui";
@@ -43,14 +45,20 @@ export default async function ContentPage({ params }: PageProps<"/[locale]/admin
         </ActionForm>
       </Panel>
       <Panel title={t("store")} id="store">
+        <div className="mb-4 rounded-lg border border-border bg-surface-2 p-3 text-sm">
+          <p className="font-semibold">{t("fixedContact")}</p>
+          <p className="text-muted">{t("fixedContactHint")}</p>
+          <ul className="mt-2 space-y-0.5">
+            <li dir="ltr">{BUSINESS.email}</li>
+            {BUSINESS.phones.map((p) => <li key={p.tel} className="ltr-nums">{p.display}</li>)}
+            <li>{pickText(locale, BUSINESS.hours)}</li>
+          </ul>
+        </div>
         <ActionForm action={saveStoreAction} errorNamespace="admin.content" className="grid gap-3 md:grid-cols-2">
           <TextField id="whatsapp" name="whatsapp" type="tel" label={t("whatsapp")} defaultValue={s.store.whatsapp ? formatIraqiPhone(s.store.whatsapp) : ""} dir="ltr" />
-          <TextField id="phone" name="phone" type="tel" label={t("phone")} defaultValue={s.store.phone ? formatIraqiPhone(s.store.phone) : ""} dir="ltr" />
-          <TextField id="email" name="email" type="email" label={t("email")} defaultValue={s.store.email} dir="ltr" />
           <TextField id="instagram" name="instagram" type="url" label={t("instagram")} defaultValue={s.store.instagram} dir="ltr" />
           <TextField id="facebook" name="facebook" type="url" label={t("facebook")} defaultValue={s.store.facebook} dir="ltr" wrapperClassName="md:col-span-2" />
           {pair("address", t("address"), s.store.address, 200)}
-          {pair("hours", t("hours"), s.store.hours, 120)}
           <div><SubmitButton>{tc("save")}</SubmitButton></div>
         </ActionForm>
       </Panel>

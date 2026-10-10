@@ -36,7 +36,16 @@ export default async function MessagesPage({ params, searchParams }: PageProps<"
               <Badge tone={m.status === "NEW" ? "warning" : "neutral"}>{t(m.status)}</Badge>
               <span className="text-xs text-muted">{formatDate(m.createdAt, lang, true)}</span>
             </div>
-            <p className="mt-1 text-sm">{t("from")}: {m.name} · <a href={whatsappLink(m.phone)} target="_blank" rel="noopener noreferrer" className="ltr-nums underline">{formatIraqiPhone(m.phone)}</a></p>
+            <p className="mt-1 text-sm">
+              {t("from")}: {m.name}
+              {m.email ? <> · <a href={`mailto:${m.email}`} className="underline" dir="ltr">{m.email}</a></> : null}
+              {m.phone ? <> · <a href={whatsappLink(m.phone)} target="_blank" rel="noopener noreferrer" className="ltr-nums underline">{formatIraqiPhone(m.phone)}</a></> : null}
+            </p>
+            {m.deliveryStatus ? (
+              <p className="mt-1 text-xs">
+                <Badge tone={m.deliveryStatus === "SENT" ? "success" : "danger"}>{t(`delivery_${m.deliveryStatus}`)}</Badge>
+              </p>
+            ) : null}
             <p className="mt-2 whitespace-pre-line text-sm">{m.message}</p>
             <div className="mt-3 flex gap-2">
               {m.status === "NEW" ? (

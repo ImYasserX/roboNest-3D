@@ -9,6 +9,9 @@ import { getAppSecret } from "@/server/env";
 import { getRequestMeta } from "@/server/request-meta";
 import { checkoutSchema, placeOrder } from "@/server/services/orders";
 import { consumeScoped } from "@/server/services/rate-limit";
+import { scheduleNotifications } from "@/server/notify";
+import { getDepositProvider } from "@/server/payments";
+import { eventIdsForOrder } from "@/server/services/notifications";
 
 export type CheckoutActionResult =
   | { ok: true; url: string }
@@ -35,15 +38,18 @@ export async function placeOrderAction(raw: Record<string, unknown>): Promise<Ch
   if (!(await consumeScoped(db, "checkout", "checkoutIp", ownerKey, ipHash))) return { ok: false, error: "rate_limited" };
 
   const user = await getCurrentUser();
-  const result = await placeOrder(db, input, { owner, userId: user?.id ?? null, appSecret: await getAppSecret() });
+  const result = await placeOrder(db, input, { owner, userId: user?.id ?? null, appSecret: await getAppSecret(), onlineDepositAvailable: (await getDepositProvider()) !== null });
   if (!result.ok) {
     const fields: Record<string, string> = {};
     if (result.error === "address_required") for (const f of ["zoneId", "city", "district", "addressLine"]) if (!raw[f]) fields[f] = "invalid_input";
     if (result.error.startsWith("discount_")) fields.discountCode = result.error;
     if (result.error === "zone_unavailable") fields.zoneId = result.error;
     if (result.error === "area_unavailable") fields.areaId = result.error;
+    if (result.error === "deposit_unconfigured") console.warn("High-value order blocked: deposit amount or methods not configured (admin → Payments)");
     return { ok: false, error: result.error, fields };
   }
+  // Telegram alert after the response; failures are recorded, never surfaced here.
+  scheduleNotifications(await eventIdsForOrder(db, result.orderId));
   refresh(); // header cart count
   return { ok: true, url: `/${locale}/orders/${result.orderNumber}?t=${result.accessToken}&new=1` };
 }

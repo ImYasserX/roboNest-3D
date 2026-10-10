@@ -1,6 +1,6 @@
 // Minimal procedural geometry for development seed data. Produces indexed
 // triangle meshes (Y-up, millimetres) used to write GLB previews, binary STL
-// downloads, and rendered product images — all from the same shapes.
+// downloads, and rendered product images, all from the same shapes.
 
 export type Vec3 = [number, number, number];
 export type Mesh = { positions: Vec3[]; indices: number[] };

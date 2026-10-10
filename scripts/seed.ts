@@ -12,7 +12,8 @@
 import { getPlatformProxy } from "wrangler";
 import { sql } from "drizzle-orm";
 import { createDb, type Database } from "@/server/db/client";
-import { adminUsers, categories, deliveryAreas, deliveryZones, discounts, products } from "@/server/db/schema";
+import { adminUsers, categories, deliveryAreas, deliveryZones, discounts, products, users } from "@/server/db/schema";
+import { normalizeIraqiPhone } from "@/lib/phone";
 import { hashPassword } from "@/server/auth/password";
 import { encryptString, randomToken } from "@/server/auth/crypto";
 import { addDigitalFile, addProductImage, createProduct, saveOption, saveOptionValue, setPreviewModel, updateImageAlt } from "@/server/services/product-admin";
@@ -84,6 +85,8 @@ type ShapeName = keyof typeof shapes;
 const CATEGORY_TREE = [
   {
     slug: "3d-models", en: "3D Models", ar: "مجسمات 3D",
+    descEn: "Downloadable STL, 3MF and OBJ files of our designs, for printing on your own printer.",
+    descAr: "ملفات STL و 3MF و OBJ لتصاميمنا، تنزلها وتطبعها على طابعتك.",
     children: [
       ["figurines", "Figurines", "مجسمات وتماثيل"],
       ["engineering-models", "Engineering", "هندسة"],
@@ -96,6 +99,8 @@ const CATEGORY_TREE = [
   },
   {
     slug: "3d-prints", en: "3D Prints", ar: "طبعات 3D",
+    descEn: "Parts, tools and decorations we print in our workshop after you order, in the material and colour you choose.",
+    descAr: "قطع وأدوات وديكورات نطبعها بورشتنا بعد طلبك، بالمادة واللون اللي تختاره.",
     children: [
       ["robotics-prints", "Robotics", "روبوتات"],
       ["accessories", "Accessories", "إكسسوارات"],
@@ -166,7 +171,7 @@ const COLOR_VALUES = [
 const PRODUCTS: ProductSeed[] = [
   {
     slug: "spur-gear-module-1", type: "PHYSICAL", category: "engineering-prints", featured: true, preview: true,
-    en: "Spur Gear — Module 1", ar: "ترس مستقيم — موديول 1",
+    en: "Spur Gear, Module 1", ar: "ترس مستقيم، موديول 1",
     summaryEn: "Sample engineering gear, printed in tough PETG or nylon-like PLA+.", summaryAr: "ترس هندسي تجريبي، يُطبع من PETG القوي أو PLA+.",
     descEn: "A module-1 spur gear for prototypes, educational gear trains and light-duty mechanisms. Printed at 0.12 mm layers with 100% infill on the teeth for strength. Sample listing for development.",
     descAr: "ترس مستقيم موديول 1 للنماذج الأولية والمشاريع التعليمية والآليات الخفيفة. ينطبع بطبقات 0.12 ملم وملء 100% للأسنان حتى يكون قوي. منتج تجريبي للتطوير.",
@@ -249,7 +254,7 @@ const PRODUCTS: ProductSeed[] = [
   {
     slug: "robonest-bot-figurine", type: "PHYSICAL_DIGITAL", category: "decoration-prints", featured: true, preview: true, digital: true,
     en: "RoboNest Bot Figurine", ar: "مجسم روبوت RoboNest",
-    summaryEn: "Our mascot as a print — includes the STL to print more.", summaryAr: "شعارنا كمجسم مطبوع — ويجي وياه ملف STL.",
+    summaryEn: "Our mascot as a print. Includes the STL to print more.", summaryAr: "شعارنا كمجسم مطبوع، ويجي وياه ملف STL.",
     descEn: "A desk companion inspired by the RoboNest logo. You receive the printed figure plus the STL file in your account after payment. Sample listing for development.",
     descAr: "مجسم للمكتب مستوحى من شعار RoboNest. توصلك القطعة المطبوعة وملف STL بحسابك بعد الدفع. منتج تجريبي للتطوير.",
     price: 25_000, cost: 6_000, availability: "MADE_TO_ORDER", days: [3, 5], dims: [90, 40, 117], grams: 95,
@@ -261,7 +266,7 @@ const PRODUCTS: ProductSeed[] = [
   },
   {
     slug: "parametric-knob-6mm", type: "DIGITAL", category: "functional-parts", digital: true,
-    en: "Parametric Knob — 6 mm D-shaft (STL)", ar: "مقبض لعمود D قياس 6 ملم (STL)",
+    en: "Parametric Knob for 6 mm D-shaft (STL)", ar: "مقبض لعمود D قياس 6 ملم (STL)",
     summaryEn: "Download: knurled knob for potentiometers and encoders.", summaryAr: "ملف للتحميل: مقبض للمقاومات المتغيرة والإنكودرات.",
     descEn: "Print-in-place friendly knob with a press-fit D-shaft socket. Digital file only. Sample listing for development.",
     descAr: "مقبض بفتحة لعمود D يركب بالضغط. ملف رقمي فقط. منتج تجريبي للتطوير.",
@@ -325,7 +330,7 @@ const PRODUCTS: ProductSeed[] = [
   },
   {
     slug: "logo-plaque-your-file", type: "CUSTOMIZABLE", category: "custom-prints", preview: true,
-    en: "Logo Plaque — From Your File", ar: "لوحة شعار — من ملفك",
+    en: "Logo Plaque From Your File", ar: "لوحة شعار من ملفك",
     summaryEn: "Upload your logo; we print it as a raised plaque.", summaryAr: "ارفع شعارك ونطبعه لوحة بارزة.",
     descEn: "Send a PNG logo or an STL and we convert it into a wall or desk plaque. We call you to confirm the design before printing. Sample listing for development.",
     descAr: "دزّلنا شعار PNG أو ملف STL ونحوّله للوحة جدار أو مكتب. نتصل بيك نأكد التصميم قبل الطباعة. منتج تجريبي للتطوير.",
@@ -348,26 +353,27 @@ const PRODUCTS: ProductSeed[] = [
   },
 ];
 
+// Every supported location uses the flat 5,000 IQD fee (lib/payment-rules.ts).
 const ZONES: [string, string, string, number, number, number][] = [
   ["BGD", "Baghdad", "بغداد", 5_000, 1, 2],
-  ["BSR", "Basra", "البصرة", 6_000, 2, 3],
-  ["NIN", "Nineveh", "نينوى", 6_000, 2, 4],
-  ["ERB", "Erbil", "أربيل", 6_000, 2, 3],
-  ["SUL", "Sulaymaniyah", "السليمانية", 7_000, 2, 4],
-  ["DHK", "Duhok", "دهوك", 7_000, 2, 4],
-  ["KRK", "Kirkuk", "كركوك", 6_000, 2, 3],
-  ["DIY", "Diyala", "ديالى", 6_000, 2, 3],
-  ["ANB", "Anbar", "الأنبار", 7_000, 2, 4],
-  ["BAB", "Babil", "بابل", 6_000, 2, 3],
-  ["KAR", "Karbala", "كربلاء", 6_000, 2, 3],
-  ["NAJ", "Najaf", "النجف", 6_000, 2, 3],
-  ["WAS", "Wasit", "واسط", 6_000, 2, 3],
-  ["SAL", "Saladin", "صلاح الدين", 7_000, 2, 4],
-  ["DQA", "Dhi Qar", "ذي قار", 7_000, 2, 4],
-  ["MAY", "Maysan", "ميسان", 7_000, 2, 4],
-  ["MUT", "Muthanna", "المثنى", 7_000, 3, 5],
-  ["QAD", "Al-Qadisiyyah", "الديوانية", 6_000, 2, 4],
-  ["HAL", "Halabja", "حلبجة", 8_000, 3, 5],
+  ["BSR", "Basra", "البصرة", 5_000, 2, 3],
+  ["NIN", "Nineveh", "نينوى", 5_000, 2, 4],
+  ["ERB", "Erbil", "أربيل", 5_000, 2, 3],
+  ["SUL", "Sulaymaniyah", "السليمانية", 5_000, 2, 4],
+  ["DHK", "Duhok", "دهوك", 5_000, 2, 4],
+  ["KRK", "Kirkuk", "كركوك", 5_000, 2, 3],
+  ["DIY", "Diyala", "ديالى", 5_000, 2, 3],
+  ["ANB", "Anbar", "الأنبار", 5_000, 2, 4],
+  ["BAB", "Babil", "بابل", 5_000, 2, 3],
+  ["KAR", "Karbala", "كربلاء", 5_000, 2, 3],
+  ["NAJ", "Najaf", "النجف", 5_000, 2, 3],
+  ["WAS", "Wasit", "واسط", 5_000, 2, 3],
+  ["SAL", "Saladin", "صلاح الدين", 5_000, 2, 4],
+  ["DQA", "Dhi Qar", "ذي قار", 5_000, 2, 4],
+  ["MAY", "Maysan", "ميسان", 5_000, 2, 4],
+  ["MUT", "Muthanna", "المثنى", 5_000, 3, 5],
+  ["QAD", "Al-Qadisiyyah", "الديوانية", 5_000, 2, 4],
+  ["HAL", "Halabja", "حلبجة", 5_000, 3, 5],
 ];
 
 // ---------------------------------------------------------------------------
@@ -405,9 +411,25 @@ async function main() {
         .where(sql`${adminUsers.username} = 'owner'`);
     }
 
+    // Test automation only: a customer whose phone is already verified, because
+    // automated tests cannot receive SMS. Never set these variables elsewhere.
+    if (process.env.SEED_CUSTOMER_PHONE && process.env.SEED_CUSTOMER_PASSWORD) {
+      const phone = normalizeIraqiPhone(process.env.SEED_CUSTOMER_PHONE);
+      if (!phone) throw new Error("SEED_CUSTOMER_PHONE is not a valid Iraqi mobile number");
+      await db.insert(users).values({ phone, name: process.env.SEED_CUSTOMER_NAME || "Test Customer", passwordHash: await hashPassword(process.env.SEED_CUSTOMER_PASSWORD), phoneVerifiedAt: new Date(), locale: "en" });
+    }
+
     // Settings ---------------------------------------------------------------
-    for (const key of ["store", "homepage", "customPrint", "security"] as const) {
-      const value = key === "store" && process.env.SEED_WHATSAPP ? { ...DEFAULT_SETTINGS.store, whatsapp: process.env.SEED_WHATSAPP } : DEFAULT_SETTINGS[key];
+    for (const key of ["store", "homepage", "customPrint", "payments", "security"] as const) {
+      const value =
+        key === "store" && process.env.SEED_WHATSAPP
+          ? { ...DEFAULT_SETTINGS.store, whatsapp: process.env.SEED_WHATSAPP }
+          : // Test automation only: record an approval of the manual deposit fallback
+            // (methods stay disabled, so high-value orders are still blocked until
+            // an admin enables one). Real approval is an owner action in the admin.
+            key === "payments" && process.env.SEED_MANUAL_DEPOSIT_APPROVED_BY
+            ? { ...DEFAULT_SETTINGS.payments, manualFallback: { approved: true, approvedBy: process.env.SEED_MANUAL_DEPOSIT_APPROVED_BY, approvedAt: new Date().toISOString() } }
+            : DEFAULT_SETTINGS[key];
       await saveSetting(db, key, value, actor);
     }
 
@@ -421,14 +443,14 @@ async function main() {
     await db.insert(deliveryAreas).values([
       { zoneId: baghdad.id, nameEn: "Karkh", nameAr: "الكرخ", fee: 5_000, sortOrder: 1 },
       { zoneId: baghdad.id, nameEn: "Rusafa", nameAr: "الرصافة", fee: 5_000, sortOrder: 2 },
-      { zoneId: baghdad.id, nameEn: "Outskirts (Abu Ghraib, Taji…)", nameAr: "الأطراف (أبو غريب، التاجي…)", fee: 7_000, sortOrder: 3 },
+      { zoneId: baghdad.id, nameEn: "Outskirts (Abu Ghraib, Taji…)", nameAr: "الأطراف (أبو غريب، التاجي…)", fee: 5_000, sortOrder: 3 },
     ]);
 
     // Categories ---------------------------------------------------------------
     const categoryIds = new Map<string, string>();
     let sort = 0;
     for (const parent of CATEGORY_TREE) {
-      const [p] = await db.insert(categories).values({ slug: parent.slug, nameEn: parent.en, nameAr: parent.ar, sortOrder: sort++ }).returning();
+      const [p] = await db.insert(categories).values({ slug: parent.slug, nameEn: parent.en, nameAr: parent.ar, descriptionEn: parent.descEn, descriptionAr: parent.descAr, sortOrder: sort++ }).returning();
       categoryIds.set(parent.slug, p.id);
       for (const [slug, en, ar] of parent.children) {
         const [c] = await db.insert(categories).values({ slug, nameEn: en, nameAr: ar, parentId: p.id, sortOrder: sort++ }).returning();
@@ -488,8 +510,8 @@ async function main() {
         await env.MEDIA.put(key, image, { httpMetadata: { contentType: "image/webp" } });
         const imageId = await addProductImage(db, productId, { key, width: 1000, height: 1000, filename: `${p.slug}-${i + 1}.webp` }, actor);
         await updateImageAlt(db, productId, imageId, {
-          altEn: `${p.en} — sample render ${i + 1}`,
-          altAr: `${p.ar} — صورة تجريبية ${i + 1}`,
+          altEn: `${p.en}, sample render ${i + 1}`,
+          altAr: `${p.ar}، صورة تجريبية ${i + 1}`,
         });
       }
       if (p.preview) {
@@ -546,7 +568,7 @@ async function main() {
 
 async function wipe(db: Database, env: CloudflareEnv) {
   const tables = [
-    "audit_logs", "rate_limits", "site_settings", "contact_messages", "wishlist_items", "custom_print_requests",
+    "notification_events", "phone_verifications", "audit_logs", "rate_limits", "site_settings", "contact_messages", "wishlist_items", "custom_print_requests",
     "order_status_history", "order_items", "orders", "cart_items", "carts", "uploads", "discounts",
     "addresses", "delivery_areas", "delivery_zones", "digital_files", "product_relations", "product_option_values",
     "product_options", "product_images", "products", "categories", "password_reset_tokens", "sessions", "users",
@@ -555,7 +577,9 @@ async function wipe(db: Database, env: CloudflareEnv) {
   for (const t of tables) {
     // Sub-categories first: the parent FK is ON DELETE RESTRICT (checked per row).
     if (t === "categories") await db.run(sql.raw("DELETE FROM categories WHERE parent_id IS NOT NULL"));
-    await db.run(sql.raw(`DELETE FROM ${t}`));
+    // Owner accounts are protected by triggers (migration 0001) and survive a local reset.
+    if (t === "admin_users") await db.run(sql.raw("DELETE FROM admin_users WHERE role <> 'OWNER'"));
+    else await db.run(sql.raw(`DELETE FROM ${t}`));
   }
   for (const bucket of [env.MEDIA, env.PRIVATE_FILES]) {
     let cursor: string | undefined;

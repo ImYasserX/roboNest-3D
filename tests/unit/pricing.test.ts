@@ -155,13 +155,13 @@ describe("evaluateDiscount", () => {
 
 describe("delivery and totals", () => {
   const zone = { id: "z", fee: 5_000, isActive: true };
-  it("uses the area fee override when present and valid", () => {
-    expect(resolveDeliveryFee(zone, null)).toEqual({ ok: true, fee: 5_000 });
-    expect(resolveDeliveryFee(zone, { id: "a", zoneId: "z", fee: 3_000, isActive: true })).toEqual({ ok: true, fee: 3_000 });
+  it("charges the flat 5,000 IQD everywhere and ignores legacy per-zone/area fees", () => {
+    expect(resolveDeliveryFee({ ...zone, fee: 9_000 } as typeof zone, null)).toEqual({ ok: true, fee: 5_000 });
+    expect(resolveDeliveryFee(zone, { id: "a", zoneId: "z", fee: 3_000, isActive: true } as { id: string; zoneId: string; isActive: boolean })).toEqual({ ok: true, fee: 5_000 });
   });
   it("rejects inactive zones and areas from another governorate", () => {
     expect(resolveDeliveryFee({ ...zone, isActive: false }, null)).toEqual({ ok: false, error: "zone_unavailable" });
-    expect(resolveDeliveryFee(zone, { id: "a", zoneId: "other", fee: 0, isActive: true })).toEqual({ ok: false, error: "area_unavailable" });
+    expect(resolveDeliveryFee(zone, { id: "a", zoneId: "other", isActive: true })).toEqual({ ok: false, error: "area_unavailable" });
   });
   it("computes deterministic integer totals", () => {
     expect(computeTotals([10_000, 25_500], 3_550, 5_000)).toEqual({ subtotal: 35_500, discountTotal: 3_550, deliveryFee: 5_000, total: 36_950 });

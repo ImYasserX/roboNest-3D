@@ -18,6 +18,8 @@ const NAV: (AdminNavItem & { permission: Permission })[] = [
   { href: "/admin/customers", key: "customers", permission: "customers.view" },
   { href: "/admin/messages", key: "messages", permission: "messages.view" },
   { href: "/admin/delivery", key: "delivery", permission: "delivery.edit" },
+  { href: "/admin/payments", key: "payments", permission: "payments.manage" },
+  { href: "/admin/notifications", key: "notifications", permission: "notifications.manage" },
   { href: "/admin/discounts", key: "discounts", permission: "discounts.manage" },
   { href: "/admin/analytics", key: "analytics", permission: "analytics.view" },
   { href: "/admin/content", key: "content", permission: "content.edit" },

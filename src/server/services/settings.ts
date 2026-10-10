@@ -3,6 +3,7 @@ import { z } from "zod";
 import { runBatch, type Database } from "@/server/db/client";
 import { siteSettings } from "@/server/db/schema";
 import { normalizeIraqiPhone } from "@/lib/phone";
+import { DEPOSIT_METHODS, type DepositMethod } from "@/lib/domain";
 import { auditInsert, type AuditActor } from "./audit";
 
 const localized = (max: number) => z.object({ en: z.string().trim().max(max), ar: z.string().trim().max(max) });
@@ -26,14 +27,12 @@ const httpsUrl = z
   .refine((v) => v === "" || /^https:\/\/[^\s<>"']+$/.test(v), "invalid_url");
 
 export const settingSchemas = {
+  // Email, phone numbers and working hours are fixed in lib/business.ts.
   store: z.object({
     whatsapp: optionalPhone,
-    phone: optionalPhone,
-    email: z.string().trim().max(120).refine((v) => v === "" || /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(v), "invalid_email"),
     instagram: httpsUrl,
     facebook: httpsUrl,
     address: localized(200),
-    hours: localized(120),
   }),
   homepage: z.object({
     announcement: localized(160),
@@ -43,6 +42,21 @@ export const settingSchemas = {
   customPrint: z.object({
     materials: z.array(z.object({ code: z.string().regex(/^[A-Z0-9_-]{2,20}$/), en: z.string().trim().min(1).max(40), ar: z.string().trim().min(1).max(40) })).min(1).max(20),
     colors: z.array(z.object({ code: z.string().regex(/^[A-Z0-9_-]{2,20}$/), en: z.string().trim().min(1).max(40), ar: z.string().trim().min(1).max(40) })).min(1).max(40),
+  }),
+  payments: z.object({
+    /**
+     * Manual transfer verification is a TEMPORARY fallback while no online
+     * provider is connected. It only works after an OWNER approves it; the
+     * approval (who and when) is stored here and in the audit log.
+     */
+    manualFallback: z
+      .object({ approved: z.boolean(), approvedBy: z.string().max(80).nullable(), approvedAt: z.string().max(40).nullable() })
+      .default({ approved: false, approvedBy: null, approvedAt: null }),
+    methods: z.object(
+      Object.fromEntries(
+        DEPOSIT_METHODS.map((m) => [m, z.object({ enabled: z.boolean(), instructions: localized(600) })]),
+      ) as Record<DepositMethod, z.ZodObject<{ enabled: z.ZodBoolean; instructions: ReturnType<typeof localized> }>>,
+    ),
   }),
   security: z.object({
     /** When true, every admin role must use TOTP (Super Admins always must). */
@@ -56,19 +70,16 @@ export type Settings = { [K in SettingKey]: z.infer<(typeof settingSchemas)[K]> 
 export const DEFAULT_SETTINGS: Settings = {
   store: {
     whatsapp: "",
-    phone: "",
-    email: "",
     instagram: "",
     facebook: "",
-    address: { en: "Iraq", ar: "العراق" },
-    hours: { en: "Saturday–Thursday, 10:00–20:00", ar: "السبت–الخميس، ١٠ الصبح–٨ المسا" },
+    address: { en: "", ar: "" },
   },
   homepage: {
-    announcement: { en: "Delivery to all 19 governorates · Cash on delivery", ar: "توصيل لكل المحافظات · الدفع عند الاستلام" },
+    announcement: { en: "Flat 5,000 IQD delivery · Cash on delivery", ar: "توصيل بسعر ثابت ٥٬٠٠٠ دينار · الدفع عند الاستلام" },
     heroTitle: { en: "Engineered prints, made for you.", ar: "طباعة ثلاثية الأبعاد بدقة هندسية، مسوّاة إلك." },
     heroSubtitle: {
-      en: "Robotics parts, tools, figurines and fully custom prints — produced in Iraq and delivered to your door. Pay when it arrives.",
-      ar: "قطع روبوتات، أدوات، مجسمات وطباعة حسب الطلب — نطبعها بالعراق ونوصلها لباب بيتك، وتدفع من يوصلك الطلب.",
+      en: "Robotics parts, tools, figurines and fully custom prints. We design and print them in our own workshop and deliver them to your door.",
+      ar: "قطع روبوتات، أدوات، مجسمات وطباعة حسب الطلب. نصممها ونطبعها بورشتنا ونوصلها لباب بيتك.",
     },
   },
   customPrint: {
@@ -88,6 +99,14 @@ export const DEFAULT_SETTINGS: Settings = {
       { code: "BLUE", en: "Blue", ar: "أزرق" },
       { code: "ANY", en: "Your recommendation", ar: "حسب اقتراحكم" },
     ],
+  },
+  payments: {
+    manualFallback: { approved: false, approvedBy: null, approvedAt: null },
+    methods: {
+      FIB: { enabled: false, instructions: { en: "", ar: "" } },
+      QICARD: { enabled: false, instructions: { en: "", ar: "" } },
+      ZAINCASH: { enabled: false, instructions: { en: "", ar: "" } },
+    },
   },
   security: { requireTotpForAllAdmins: false },
 };

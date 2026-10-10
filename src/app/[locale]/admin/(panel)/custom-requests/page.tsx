@@ -38,7 +38,7 @@ export default async function CustomRequestsAdminPage({ params, searchParams }: 
           { key: "c", header: tc("name"), cell: (r) => <span>{r.customerName}<br /><span className="ltr-nums text-xs text-muted">{formatIraqiPhone(r.customerPhone)}</span></span> },
           { key: "m", header: t("material"), cell: (r) => `${r.material} ×${r.quantity}` },
           { key: "s", header: tc("status"), cell: (r) => <Badge tone={r.status === "SUBMITTED" ? "warning" : r.status === "ACCEPTED" ? "success" : r.status === "REJECTED" ? "danger" : "primary"}>{ts(`customRequest.${r.status}`)}</Badge> },
-          { key: "q", header: t("quotedPrice"), align: "end", cell: (r) => (r.quotedPrice ? <span className="ltr-nums">{formatIQD(r.quotedPrice, lang)}</span> : "—") },
+          { key: "q", header: t("quotedPrice"), align: "end", cell: (r) => (r.quotedPrice ? <span className="ltr-nums">{formatIQD(r.quotedPrice, lang)}</span> : tc("notSet")) },
           { key: "d", header: tc("date"), cell: (r) => formatDate(r.createdAt, lang, true) },
         ]}
       />

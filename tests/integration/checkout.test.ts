@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { discounts, orderItems, orders, orderStatusHistory, products } from "@/server/db/schema";
 import { addToCart, getCartView, mergeVisitorCart, removeCartItem, updateCartItemQuantity } from "@/server/services/cart";
-import { findOrderByNumberAndPhone, getOrderByAccessToken, getOrderForUser, placeOrder } from "@/server/services/orders";
+import { getOrderByAccessToken, getOrderForUser, placeOrder } from "@/server/services/orders";
 import { startPlatform, type TestPlatform } from "../support/platform";
 import { checkoutInput, makeArea, makeCustomizableProduct, makeDiscount, makeProduct, makeUser, makeZone } from "../support/fixtures";
 
@@ -105,7 +105,7 @@ describe("checkout", () => {
     expect(view?.total).toBe(50_000);
   });
 
-  it("uses the delivery area fee override and rejects unknown zones", async () => {
+  it("charges the flat 5,000 IQD fee everywhere (legacy zone/area fees ignored) and rejects unknown zones", async () => {
     const product = await makeProduct(p.db, { basePrice: 10_000 });
     const zone = await makeZone(p.db, { fee: 6_000 });
     const area = await makeArea(p.db, zone.id, 3_000);
@@ -117,7 +117,7 @@ describe("checkout", () => {
     expect(await placeOrder(p.db, checkoutInput(inactive.id), { owner, userId: null, appSecret: SECRET })).toEqual({ ok: false, error: "zone_unavailable" });
     const ok = await placeOrder(p.db, checkoutInput(zone.id, { areaId: area.id }), { owner, userId: null, appSecret: SECRET });
     expect(ok.ok).toBe(true);
-    if (ok.ok) expect((await p.db.select().from(orders).where(eq(orders.id, ok.orderId)))[0].deliveryFee).toBe(3_000);
+    if (ok.ok) expect((await p.db.select().from(orders).where(eq(orders.id, ok.orderId)))[0]).toMatchObject({ deliveryFee: 5_000, total: 15_000 });
   });
 
   it("is idempotent: repeated submits return the same order", async () => {
@@ -203,8 +203,6 @@ describe("order access control", () => {
     expect(await getOrderForUser(p.db, r.orderNumber, other.id)).toBeNull();
     expect(await getOrderByAccessToken(p.db, r.orderNumber, r.accessToken)).not.toBeNull();
     expect(await getOrderByAccessToken(p.db, r.orderNumber, "0".repeat(40))).toBeNull();
-    expect(await findOrderByNumberAndPhone(p.db, r.orderNumber, "0770 123 4567")).not.toBeNull();
-    expect(await findOrderByNumberAndPhone(p.db, r.orderNumber, "0770 123 4568")).toBeNull();
 
     const view = await getOrderForUser(p.db, r.orderNumber, owner.id);
     expect(view).not.toHaveProperty("adminNotes");

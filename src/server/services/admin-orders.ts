@@ -103,6 +103,10 @@ export async function changeOrderStatus(
   if (!canTransitionOrder(order.status, input.to, { hasPhysical: order.hasPhysical })) {
     return { ok: false, error: "invalid_transition" };
   }
+  // Defence in depth (the orders_deposit_gate trigger enforces the same).
+  if (order.depositRequired && order.depositStatus !== "VERIFIED" && input.to !== "CANCELLED") {
+    return { ok: false, error: "invalid_transition" };
+  }
 
   const patch: Partial<typeof orders.$inferInsert> = { status: input.to };
   if (input.to === "CONFIRMED" && !order.confirmedAt) patch.confirmedAt = now;

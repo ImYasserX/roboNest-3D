@@ -3,11 +3,19 @@
 /* ==========================================================================
    RoboNest.3D design tokens
    Every colour used by components comes from these variables. The storefront
-   uses the dark brand theme; the admin area opts into [data-theme="light"]
-   for dense data work. All text pairs meet WCAG 2.2 AA (see TESTING.md).
+   offers dark (brand default), light and system themes; the admin area pins
+   the light theme for dense data work. Purple palette: #7F56D9 (primary),
+   #6941C6 (hover / light-theme text), #A476FF (dark-theme text). All text
+   pairs meet WCAG 2.2 AA (see TESTING.md).
    ========================================================================== */
 
-:root {
+/* Theme selection (see components/layout/theme-toggle.tsx):
+   - <html data-theme="dark|light"> is an explicit choice from the rn_theme
+     cookie, rendered by the server, so the first paint is already correct;
+   - no attribute means "system": follow prefers-color-scheme.
+   The admin area always pins data-theme="light" on its own wrapper. */
+:root,
+[data-theme="dark"] {
   --rn-bg: #0c0a14;
   --rn-surface: #16131f;
   --rn-surface-2: #1e1a2b;
@@ -16,10 +24,10 @@
   --rn-border-strong: #6e6784;
   --rn-text: #f5f3fb;
   --rn-text-muted: #a8a1bd;
-  --rn-primary: #7e22ce;
-  --rn-primary-hover: #6b1bb0;
-  --rn-primary-soft: rgb(126 34 206 / 0.16);
-  --rn-primary-text: #c79bff;
+  --rn-primary: #7f56d9;
+  --rn-primary-hover: #6941c6;
+  --rn-primary-soft: rgb(127 86 217 / 0.18);
+  --rn-primary-text: #a476ff;
   --rn-on-primary: #ffffff;
   --rn-accent: #5eead4;
   --rn-success: #4ade80;
@@ -30,10 +38,45 @@
   --rn-danger-soft: rgb(251 113 133 / 0.12);
   --rn-info: #7dd3fc;
   --rn-info-soft: rgb(125 211 252 / 0.12);
-  --rn-focus: #d8b4fe;
+  --rn-focus: #c4a5ff;
   --rn-overlay: rgb(5 4 10 / 0.72);
-  --rn-grid-line: rgb(199 155 255 / 0.06);
+  --rn-grid-line: rgb(164 118 255 / 0.06);
+  --rn-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 12px 32px -12px rgb(0 0 0 / 0.6);
+  --rn-glow: 0 0 0 1px rgb(164 118 255 / 0.35), 0 18px 40px -18px rgb(127 86 217 / 0.65);
   color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+  --rn-bg: #f7f6fb;
+  --rn-surface: #ffffff;
+  --rn-surface-2: #f1eff7;
+  --rn-surface-3: #e7e3f1;
+  --rn-border: #e2deec;
+  --rn-border-strong: #8a849c;
+  --rn-text: #17131f;
+  --rn-text-muted: #595370;
+  --rn-primary: #7f56d9;
+  --rn-primary-hover: #6941c6;
+  --rn-primary-soft: rgb(127 86 217 / 0.1);
+  --rn-primary-text: #6941c6;
+  --rn-on-primary: #ffffff;
+  --rn-accent: #0f766e;
+  --rn-success: #166534;
+  --rn-success-soft: rgb(22 101 52 / 0.09);
+  --rn-warning: #92400e;
+  --rn-warning-soft: rgb(146 64 14 / 0.1);
+  --rn-danger: #9f1239;
+  --rn-danger-soft: rgb(159 18 57 / 0.08);
+  --rn-info: #075985;
+  --rn-info-soft: rgb(7 89 133 / 0.08);
+  --rn-focus: #6941c6;
+  --rn-overlay: rgb(23 19 31 / 0.5);
+  --rn-grid-line: rgb(127 86 217 / 0.06);
+  --rn-shadow: 0 1px 2px rgb(23 19 31 / 0.06), 0 12px 32px -14px rgb(23 19 31 / 0.18);
+  --rn-glow: 0 0 0 1px rgb(127 86 217 / 0.35), 0 18px 40px -18px rgb(127 86 217 / 0.45);
+  color-scheme: light;
+  }
 }
 
 [data-theme="light"] {
@@ -45,10 +88,10 @@
   --rn-border-strong: #8a849c;
   --rn-text: #17131f;
   --rn-text-muted: #595370;
-  --rn-primary: #7e22ce;
-  --rn-primary-hover: #6b1bb0;
-  --rn-primary-soft: rgb(126 34 206 / 0.09);
-  --rn-primary-text: #6b21a8;
+  --rn-primary: #7f56d9;
+  --rn-primary-hover: #6941c6;
+  --rn-primary-soft: rgb(127 86 217 / 0.1);
+  --rn-primary-text: #6941c6;
   --rn-on-primary: #ffffff;
   --rn-accent: #0f766e;
   --rn-success: #166534;
@@ -59,9 +102,11 @@
   --rn-danger-soft: rgb(159 18 57 / 0.08);
   --rn-info: #075985;
   --rn-info-soft: rgb(7 89 133 / 0.08);
-  --rn-focus: #7e22ce;
+  --rn-focus: #6941c6;
   --rn-overlay: rgb(23 19 31 / 0.5);
-  --rn-grid-line: rgb(126 34 206 / 0.05);
+  --rn-grid-line: rgb(127 86 217 / 0.06);
+  --rn-shadow: 0 1px 2px rgb(23 19 31 / 0.06), 0 12px 32px -14px rgb(23 19 31 / 0.18);
+  --rn-glow: 0 0 0 1px rgb(127 86 217 / 0.35), 0 18px 40px -18px rgb(127 86 217 / 0.45);
   color-scheme: light;
 }
 
@@ -90,6 +135,8 @@
   --color-info-soft: var(--rn-info-soft);
   --color-focus: var(--rn-focus);
   --color-overlay: var(--rn-overlay);
+  --shadow-card: var(--rn-shadow);
+  --shadow-glow: var(--rn-glow);
 
   --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-display-face), var(--font-body), ui-sans-serif, system-ui, sans-serif;
@@ -159,4 +206,29 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Mobile menu drawer slides in from the edge it is anchored to (inline start). */
+@keyframes rn-drawer-in-ltr {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+@keyframes rn-drawer-in-rtl {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.mobile-drawer[open] {
+  animation: rn-drawer-in-ltr 180ms ease-out;
+}
+[dir="rtl"] .mobile-drawer[open] {
+  animation-name: rn-drawer-in-rtl;
+}
+
+/* Category cards: restrained lift and image zoom on hover/focus. */
+.category-card .category-media img {
+  transition: transform 500ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.category-card:hover .category-media img,
+.category-card:focus-visible .category-media img {
+  transform: scale(1.05);
 }

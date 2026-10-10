@@ -51,7 +51,7 @@ export async function CatalogView({ query, basePath, fixed = {}, showSearch = fa
             <option value="">{t("allCategories")}</option>
             {tree.roots.map((root) => (
               <optgroup key={root.id} label={pick(locale, root.nameEn, root.nameAr)}>
-                <option value={root.slug}>{pick(locale, root.nameEn, root.nameAr)} — {t("allCategories")}</option>
+                <option value={root.slug}>{pick(locale, root.nameEn, root.nameAr)}: {t("allCategories")}</option>
                 {root.children.map((c) => (
                   <option key={c.id} value={c.slug}>
                     {pick(locale, c.nameEn, c.nameAr)}

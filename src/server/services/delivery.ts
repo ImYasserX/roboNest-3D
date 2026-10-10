@@ -2,7 +2,7 @@ import { asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { runBatch, type Database } from "@/server/db/client";
 import { deliveryAreas, deliveryZones } from "@/server/db/schema";
-import { MAX_PRICE_IQD } from "@/lib/domain";
+import { FLAT_DELIVERY_FEE_IQD } from "@/lib/payment-rules";
 import { auditInsert, type AuditActor } from "./audit";
 
 export async function listDeliveryZones(db: Database, opts: { activeOnly?: boolean } = {}) {
@@ -19,12 +19,12 @@ export async function listDeliveryZones(db: Database, opts: { activeOnly?: boole
   return zones.map((z) => ({ ...z, areas: areas.filter((a) => a.zoneId === z.id) }));
 }
 
-const fee = z.preprocess((v) => Number(v), z.number().int().min(0).max(MAX_PRICE_IQD));
 const bool = z.preprocess((v) => v === "on" || v === true || v === "true", z.boolean());
 
+// Fees are not editable: every supported location costs FLAT_DELIVERY_FEE_IQD.
+// Zones and areas only control where delivery is offered.
 export const zoneSchema = z
   .object({
-    fee,
     etaDaysMin: z.preprocess((v) => Number(v), z.number().int().min(0).max(30)),
     etaDaysMax: z.preprocess((v) => Number(v), z.number().int().min(0).max(30)),
     isActive: bool,
@@ -37,12 +37,12 @@ export async function updateZone(db: Database, id: string, raw: unknown, actor: 
   const [zone] = await db.select().from(deliveryZones).where(eq(deliveryZones.id, id)).limit(1);
   if (!zone) return { ok: false as const };
   await runBatch(db, [
-    db.update(deliveryZones).set(parsed.data).where(eq(deliveryZones.id, id)),
+    db.update(deliveryZones).set({ ...parsed.data, fee: FLAT_DELIVERY_FEE_IQD }).where(eq(deliveryZones.id, id)),
     auditInsert(db, actor, {
       action: "delivery.zone.updated",
       targetType: "deliveryZone",
       targetId: id,
-      metadata: { code: zone.code, from: { fee: zone.fee, isActive: zone.isActive }, to: { fee: parsed.data.fee, isActive: parsed.data.isActive } },
+      metadata: { code: zone.code, from: { isActive: zone.isActive }, to: { isActive: parsed.data.isActive } },
     }),
   ]);
   return { ok: true as const };
@@ -51,7 +51,6 @@ export async function updateZone(db: Database, id: string, raw: unknown, actor: 
 export const areaSchema = z.object({
   nameEn: z.string().trim().min(2).max(60),
   nameAr: z.string().trim().min(2).max(60),
-  fee,
   isActive: bool,
 });
 
@@ -60,15 +59,15 @@ export async function saveArea(db: Database, zoneId: string, areaId: string | nu
   if (!parsed.success) return { ok: false as const, error: "invalid_input" };
   try {
     if (areaId) {
-      const res = await db.update(deliveryAreas).set(parsed.data).where(eq(deliveryAreas.id, areaId)).returning({ zoneId: deliveryAreas.zoneId });
+      const res = await db.update(deliveryAreas).set({ ...parsed.data, fee: FLAT_DELIVERY_FEE_IQD }).where(eq(deliveryAreas.id, areaId)).returning({ zoneId: deliveryAreas.zoneId });
       if (res[0]?.zoneId !== zoneId) return { ok: false as const, error: "not_found" };
     } else {
-      await db.insert(deliveryAreas).values({ zoneId, ...parsed.data });
+      await db.insert(deliveryAreas).values({ zoneId, ...parsed.data, fee: FLAT_DELIVERY_FEE_IQD });
     }
   } catch {
     return { ok: false as const, error: "duplicate" };
   }
-  await auditInsert(db, actor, { action: areaId ? "delivery.area.updated" : "delivery.area.created", targetType: "deliveryZone", targetId: zoneId, metadata: { name: parsed.data.nameEn, fee: parsed.data.fee } });
+  await auditInsert(db, actor, { action: areaId ? "delivery.area.updated" : "delivery.area.created", targetType: "deliveryZone", targetId: zoneId, metadata: { name: parsed.data.nameEn } });
   return { ok: true as const };
 }
 

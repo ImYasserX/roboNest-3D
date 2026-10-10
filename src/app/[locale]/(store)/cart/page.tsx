@@ -5,6 +5,7 @@ import { getCartOwner } from "@/server/cart-owner";
 import { getDb } from "@/server/db/client";
 import { getCartView } from "@/server/services/cart";
 import { formatIQD } from "@/lib/money";
+import { DEPOSIT_THRESHOLD_IQD, FLAT_DELIVERY_FEE_IQD, requiresDeposit } from "@/lib/payment-rules";
 import { CartLines } from "@/components/cart/cart-lines";
 import { ButtonLink } from "@/components/ui/button";
 import { CartIcon } from "@/components/ui/icons";
@@ -45,7 +46,13 @@ export default async function CartPage({ params }: PageProps<"/[locale]/cart">) 
               <span>{t("subtotal")}</span>
               <span className="ltr-nums font-bold">{formatIQD(cart.subtotal, lang)}</span>
             </div>
-            <p className="text-sm text-muted">{t("deliveryAtCheckout")}</p>
+            {cart.hasPhysical ? (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted">{t("deliveryFlat")}</span>
+                <span className="ltr-nums">{formatIQD(FLAT_DELIVERY_FEE_IQD, lang)}</span>
+              </div>
+            ) : null}
+            {requiresDeposit(cart.subtotal) ? <Alert tone="warning">{t("depositNotice", { threshold: formatIQD(DEPOSIT_THRESHOLD_IQD, lang) })}</Alert> : null}
             {cart.hasDigital && !user ? <Alert tone="info">{t("digitalNeedsAccount")}</Alert> : null}
             {cart.isValid ? (
               <ButtonLink href="/checkout" size="lg" className="w-full">

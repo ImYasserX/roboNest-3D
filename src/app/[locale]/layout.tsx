@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { IBM_Plex_Sans_Arabic, Inter, Manrope } from "next/font/google";
+import { cookies } from "next/headers";
 import { routing } from "@/i18n/routing";
+import { THEME_COOKIE, parseTheme, themeAttribute } from "@/lib/theme";
 import { getSiteUrl } from "@/server/env";
 
 const body = Inter({ subsets: ["latin"], variable: "--font-body", display: "swap" });
@@ -16,7 +18,10 @@ const arabic = IBM_Plex_Sans_Arabic({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#0c0a14",
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0c0a14" },
+    { media: "(prefers-color-scheme: light)", color: "#f7f6fb" },
+  ],
   width: "device-width",
   initialScale: 1,
 };
@@ -30,6 +35,7 @@ export async function generateMetadata({ params }: LayoutProps<"/[locale]">): Pr
     title: { default: t("defaultTitle"), template: `%s · RoboNest.3D` },
     description: t("defaultDescription"),
     applicationName: "RoboNest.3D",
+    manifest: "/manifest.webmanifest",
     openGraph: { siteName: "RoboNest.3D", locale: locale === "ar" ? "ar_IQ" : "en_US", type: "website" },
     twitter: { card: "summary_large_image" },
     formatDetection: { telephone: false },
@@ -40,11 +46,15 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
   setRequestLocale(locale);
+  // Explicit theme choice comes from a cookie, so the server paints the right
+  // theme first (no flash, no hydration mismatch). "system" leaves it to CSS.
+  const theme = themeAttribute(parseTheme((await cookies()).get(THEME_COOKIE)?.value));
 
   return (
     <html
       lang={locale === "ar" ? "ar-IQ" : "en"}
       dir={locale === "ar" ? "rtl" : "ltr"}
+      data-theme={theme}
       className={`${body.variable} ${display.variable} ${arabic.variable}`}
     >
       <body className="min-h-dvh bg-bg text-text antialiased">

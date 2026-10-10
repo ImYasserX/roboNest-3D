@@ -10,7 +10,7 @@ for (const locale of ["ar", "en"]) {
       await page.setViewportSize({ width, height: 900 });
       // Put something in the cart so /checkout renders the form.
       await page.goto(`/${locale}/products/servo-bracket-mg996r`);
-      await page.locator("form button[type=submit]").first().click();
+      await page.locator("main form button[type=submit]").first().click();
       await page.waitForTimeout(800);
       for (const path of PAGES) {
         await page.goto(`/${locale}${path}`);

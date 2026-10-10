@@ -65,7 +65,7 @@ export function ProductConfigurator({ product, options }: Props) {
   const [pending, startTransition] = useTransition();
   const [touched, setTouched] = useState(false);
 
-  // Preview only — the server recomputes the price when the item is added.
+  // Preview only: the server recomputes the price when the item is added.
   const pricing: PricingProduct = useMemo(
     () => ({
       ...product,

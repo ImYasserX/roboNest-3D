@@ -10,6 +10,7 @@ import { SelectField, TextField } from "@/components/ui/field";
 import { Alert } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
 import type { CheckoutZone } from "@/components/checkout/checkout-form";
+import { DEPOSIT_THRESHOLD_IQD, FLAT_DELIVERY_FEE_IQD, requiresDeposit } from "@/lib/payment-rules";
 
 export function QuoteResponse({ access, price, zones }: { access: { requestNumber: string; token: string | null }; price: number; zones: CheckoutZone[] }) {
   const t = useTranslations("custom");
@@ -21,7 +22,8 @@ export function QuoteResponse({ access, price, zones }: { access: { requestNumbe
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const zone = zones.find((z) => z.id === v.zoneId);
-  const fee = zone ? (zone.areas.find((a) => a.id === v.areaId)?.fee ?? zone.fee) : null;
+  const fee = zone ? FLAT_DELIVERY_FEE_IQD : null;
+  const needsDeposit = requiresDeposit(price);
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setV((s) => ({ ...s, [k]: e.target.value, ...(k === "zoneId" ? { areaId: "" } : {}) }));
   const errText = (code: string) => (code === "rate_limited" ? tc("rateLimited") : t.has(`errors.${code}`) ? t(`errors.${code}`) : t("errors.failed"));
 
@@ -45,12 +47,12 @@ export function QuoteResponse({ access, price, zones }: { access: { requestNumbe
       <div className="grid gap-4 sm:grid-cols-2">
         <SelectField id="q-zone" label={tco("governorate")} required value={v.zoneId} onChange={set("zoneId")}>
           <option value="">{tco("chooseGovernorate")}</option>
-          {zones.map((z) => <option key={z.id} value={z.id}>{pick(locale, z.nameEn, z.nameAr)} — {formatIQD(z.fee, locale)}</option>)}
+          {zones.map((z) => <option key={z.id} value={z.id}>{pick(locale, z.nameEn, z.nameAr)}</option>)}
         </SelectField>
         {zone && zone.areas.length ? (
           <SelectField id="q-area" label={tco("area")} value={v.areaId} onChange={set("areaId")}>
             <option value="">{tco("otherArea")}</option>
-            {zone.areas.map((a) => <option key={a.id} value={a.id}>{pick(locale, a.nameEn, a.nameAr)} — {formatIQD(a.fee, locale)}</option>)}
+            {zone.areas.map((a) => <option key={a.id} value={a.id}>{pick(locale, a.nameEn, a.nameAr)}</option>)}
           </SelectField>
         ) : null}
         <TextField id="q-city" label={tco("city")} required value={v.city} onChange={set("city")} maxLength={80} />
@@ -58,7 +60,10 @@ export function QuoteResponse({ access, price, zones }: { access: { requestNumbe
         <TextField id="q-address" label={tco("addressLine")} required wrapperClassName="sm:col-span-2" value={v.addressLine} onChange={set("addressLine")} maxLength={200} />
         <TextField id="q-landmark" label={tco("landmark")} optionalLabel={tc("optional")} wrapperClassName="sm:col-span-2" value={v.landmark} onChange={set("landmark")} maxLength={120} />
       </div>
+      {needsDeposit ? <Alert tone="warning">{t("depositNotice", { threshold: formatIQD(DEPOSIT_THRESHOLD_IQD, locale) })}</Alert> : null}
       <p className="text-sm">
+        {tco("deliveryFee")}: <span className="ltr-nums">{formatIQD(FLAT_DELIVERY_FEE_IQD, locale)}</span>
+        {" · "}
         {tco("total")}: <strong className="ltr-nums">{formatIQD(price + (fee ?? 0), locale)}</strong>
       </p>
       <div className="flex flex-wrap gap-3">

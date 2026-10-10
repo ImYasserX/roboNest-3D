@@ -5,7 +5,7 @@ import { getCategoryTree, listPublishedSlugs } from "@/server/services/catalog";
 
 export const dynamic = "force-dynamic";
 
-const STATIC_PATHS = ["", "/products", "/categories", "/models", "/custom-printing", "/about", "/contact", "/faq", "/delivery", "/returns", "/privacy", "/terms", "/track"];
+const STATIC_PATHS = ["", "/products", "/categories", "/models", "/custom-printing", "/about", "/contact", "/faq", "/delivery", "/returns", "/privacy", "/terms", "/payment"];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [siteUrl, db] = await Promise.all([getSiteUrl(), getDb()]);

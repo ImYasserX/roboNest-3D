@@ -1,4 +1,4 @@
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { runBatch, type BatchStatement, type Database } from "@/server/db/client";
 import { adminSessions, adminUsers } from "@/server/db/schema";
@@ -6,7 +6,8 @@ import { decryptString, encryptString } from "@/server/auth/crypto";
 import { getDummyHash, hashPassword, verifyPassword } from "@/server/auth/password";
 import { generateTotpSecret, totpUri, verifyTotp } from "@/server/auth/totp";
 import { ADMIN_MAX_MFA_ATTEMPTS } from "@/server/auth/sessions";
-import { ADMIN_ROLES } from "@/lib/domain";
+import { ASSIGNABLE_ADMIN_ROLES, type AdminRole } from "@/lib/domain";
+import { canManageAdmin } from "@/lib/permissions";
 import { auditInsert, writeAudit, type AuditActor } from "./audit";
 
 export const ADMIN_PASSWORD_MIN = 12;
@@ -122,13 +123,14 @@ export async function changeAdminPassword(db: Database, adminId: string, current
 }
 
 // ---------------------------------------------------------------------------
-// Admin user management (Super Admin only — enforced by callers)
+// Admin user management (Owners and Super Admins only, enforced by callers)
 // ---------------------------------------------------------------------------
 
 export const createAdminSchema = z.object({
   username: usernameField,
   displayName: z.string().trim().min(2).max(60),
-  role: z.enum(ADMIN_ROLES),
+  // OWNER is never assignable here: owners come only from scripts/bootstrap-owners.ts.
+  role: z.enum(ASSIGNABLE_ADMIN_ROLES),
   password: adminPasswordField,
 });
 
@@ -153,7 +155,12 @@ export async function createAdminUser(db: Database, raw: unknown, actor: AuditAc
 }
 
 async function activeSuperAdminCount(db: Database) {
-  return db.$count(adminUsers, and(eq(adminUsers.role, "SUPER_ADMIN"), eq(adminUsers.status, "ACTIVE")));
+  return db.$count(adminUsers, and(inArray(adminUsers.role, ["OWNER", "SUPER_ADMIN"]), eq(adminUsers.status, "ACTIVE")));
+}
+
+async function targetRole(db: Database, targetId: string): Promise<AdminRole | null> {
+  const [row] = await db.select({ role: adminUsers.role }).from(adminUsers).where(eq(adminUsers.id, targetId)).limit(1);
+  return row?.role ?? null;
 }
 
 export async function updateAdminUser(
@@ -163,11 +170,13 @@ export async function updateAdminUser(
   actor: AuditActor,
 ) {
   const parsed = z
-    .object({ role: z.enum(ADMIN_ROLES), status: z.enum(["ACTIVE", "DISABLED"]), displayName: z.string().trim().min(2).max(60) })
+    .object({ role: z.enum(ASSIGNABLE_ADMIN_ROLES), status: z.enum(["ACTIVE", "DISABLED"]), displayName: z.string().trim().min(2).max(60) })
     .safeParse(raw);
   if (!parsed.success) return { ok: false as const, error: "invalid_input" as const };
   const [target] = await db.select().from(adminUsers).where(eq(adminUsers.id, targetId)).limit(1);
   if (!target) return { ok: false as const, error: "not_found" as const };
+  // Owners cannot be demoted, disabled or renamed from the UI (DB triggers agree).
+  if (target.role === "OWNER") return { ok: false as const, error: "owner_protected" as const };
   const losesSuper = target.role === "SUPER_ADMIN" && target.status === "ACTIVE" && (parsed.data.role !== "SUPER_ADMIN" || parsed.data.status !== "ACTIVE");
   if (losesSuper && (await activeSuperAdminCount(db)) <= 1) return { ok: false as const, error: "last_super_admin" as const };
   const statements: BatchStatement[] = [
@@ -187,9 +196,12 @@ export async function updateAdminUser(
   return { ok: true as const };
 }
 
-export async function setAdminPasswordBySuperAdmin(db: Database, targetId: string, password: string, actor: AuditActor) {
+export async function setAdminPasswordBySuperAdmin(db: Database, targetId: string, password: string, actor: AuditActor, actorRole: AdminRole) {
   const parsed = adminPasswordField.safeParse(password);
   if (!parsed.success) return { ok: false as const, error: "password_too_short" as const };
+  const role = await targetRole(db, targetId);
+  if (!role) return { ok: false as const, error: "not_found" as const };
+  if (!canManageAdmin(actorRole, role)) return { ok: false as const, error: "owner_protected" as const };
   await runBatch(db, [
     db
       .update(adminUsers)
@@ -202,7 +214,10 @@ export async function setAdminPasswordBySuperAdmin(db: Database, targetId: strin
 }
 
 /** Clears another admin's TOTP (lost phone). They must re-enroll at next login if required. */
-export async function resetAdminTotp(db: Database, targetId: string, actor: AuditActor) {
+export async function resetAdminTotp(db: Database, targetId: string, actor: AuditActor, actorRole: AdminRole) {
+  const role = await targetRole(db, targetId);
+  if (!role) return { ok: false as const, error: "not_found" as const };
+  if (!canManageAdmin(actorRole, role)) return { ok: false as const, error: "owner_protected" as const };
   await runBatch(db, [
     db.update(adminUsers).set({ totpEnabled: false, totpSecretEnc: null, totpLastCounter: null }).where(eq(adminUsers.id, targetId)),
     db.delete(adminSessions).where(eq(adminSessions.adminId, targetId)),

@@ -4,7 +4,7 @@ import { getLocale, getTranslations, setRequestLocale } from "next-intl/server";
 import { requireAdminPage } from "@/server/auth/current";
 import { getDb } from "@/server/db/client";
 import { getOrderAdmin } from "@/server/services/admin-orders";
-import { updateOrderNotesAction, updateOrderStatusAction, updatePaymentStatusAction } from "@/server/actions/admin/orders";
+import { decideDepositAction, updateOrderNotesAction, updateOrderStatusAction, updatePaymentStatusAction } from "@/server/actions/admin/orders";
 import { PAYMENT_STATUSES } from "@/lib/domain";
 import { allowedOrderTransitions } from "@/lib/order-status";
 import { hasPermission } from "@/lib/permissions";
@@ -16,7 +16,7 @@ import { Link } from "@/i18n/navigation";
 import { ActionForm } from "@/components/admin/action-form";
 import { AdminPageHeader, Panel } from "@/components/admin/ui";
 import { buttonClass } from "@/components/ui/button";
-import { SelectField, TextAreaField } from "@/components/ui/field";
+import { SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { Badge } from "@/components/ui/misc";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { WhatsappIcon } from "@/components/ui/icons";
@@ -36,7 +36,9 @@ export default async function AdminOrderPage({ params }: PageProps<"/[locale]/ad
   const [t, tc, ts, tco, lang] = await Promise.all([getTranslations("admin.orders"), getTranslations("admin.common"), getTranslations("status"), getTranslations("checkout"), getLocale()]);
   const canEdit = hasPermission(admin.role, "orders.update");
   const canSeeCost = hasPermission(admin.role, "analytics.profit");
-  const transitions = allowedOrderTransitions(order.status, { hasPhysical: order.hasPhysical });
+  const transitions = allowedOrderTransitions(order.status, { hasPhysical: order.hasPhysical }).filter(
+    (to) => !order.depositRequired || order.depositStatus === "VERIFIED" || to === "CANCELLED",
+  );
   const iqd = (n: number) => formatIQD(n, lang);
 
   return (
@@ -124,6 +126,35 @@ export default async function AdminOrderPage({ params }: PageProps<"/[locale]/ad
               </a>
             </div>
           </Panel>
+
+          {order.depositRequired ? (
+            <Panel title={t("deposit.title")} id="deposit">
+              <dl className="space-y-1 text-sm">
+                <div className="flex justify-between gap-2"><dt className="text-muted">{t("deposit.amount")}</dt><dd className="ltr-nums font-semibold">{iqd(order.depositAmount)}</dd></div>
+                <div className="flex justify-between gap-2"><dt className="text-muted">{t("deposit.status")}</dt><dd><Badge tone={order.depositStatus === "VERIFIED" ? "success" : order.depositStatus === "SUBMITTED" ? "info" : "warning"}>{ts(`deposit.${order.depositStatus}`)}</Badge></dd></div>
+                {order.depositMethod ? <div className="flex justify-between gap-2"><dt className="text-muted">{t("deposit.method")}</dt><dd>{ts(`depositMethod.${order.depositMethod}`)}</dd></div> : null}
+                {order.depositReference ? <div className="flex justify-between gap-2"><dt className="text-muted">{t("deposit.reference")}</dt><dd dir="ltr" className="break-all font-mono">{order.depositReference}</dd></div> : null}
+                {order.depositVerifiedAt ? <div className="flex justify-between gap-2"><dt className="text-muted">{t("deposit.verifiedAt")}</dt><dd>{formatDate(order.depositVerifiedAt, lang, true)}</dd></div> : null}
+                <div className="flex justify-between gap-2"><dt className="text-muted">{t("deposit.balance")}</dt><dd className="ltr-nums">{iqd(order.total - order.depositAmount)}</dd></div>
+              </dl>
+              {order.status === "DEPOSIT_SUBMITTED" && hasPermission(admin.role, "deposits.verify") ? (
+                <div className="mt-4 space-y-3 border-t border-border pt-4">
+                  <p className="text-sm text-muted">{t("deposit.checkHint")}</p>
+                  <ActionForm action={decideDepositAction} errorNamespace="admin.orders">
+                    <input type="hidden" name="orderId" value={order.id} />
+                    <TextField id="receivedAmount" name="receivedAmount" inputMode="numeric" dir="ltr" label={t("deposit.receivedAmount")} hint={t("deposit.receivedAmountHint", { amount: iqd(order.depositAmount) })} maxLength={12} />
+                    <TextAreaField id="depositNote" name="publicNote" label={t("publicNote")} hint={t("publicNoteHint")} maxLength={500} rows={2} className="min-h-16" />
+                    <div className="flex flex-wrap gap-2">
+                      <SubmitButton name="decision" value="verify">{t("deposit.verify")}</SubmitButton>
+                      <SubmitButton name="decision" value="reject" variant="secondary">{t("deposit.reject")}</SubmitButton>
+                    </div>
+                  </ActionForm>
+                </div>
+              ) : order.status === "DEPOSIT_SUBMITTED" ? (
+                <p className="mt-3 text-sm text-muted">{t("deposit.noPermission")}</p>
+              ) : null}
+            </Panel>
+          ) : null}
 
           {canEdit ? (
             <>

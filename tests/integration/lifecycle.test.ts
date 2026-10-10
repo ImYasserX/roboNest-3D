@@ -54,7 +54,7 @@ describe("order status lifecycle", () => {
   });
 
   it("restores stock and releases the discount when an order is cancelled", async () => {
-    const product = await makeProduct(p.db, { availability: "IN_STOCK", stockQuantity: 5 });
+    const product = await makeProduct(p.db, { availability: "IN_STOCK", stockQuantity: 5, basePrice: 10_000 });
     const discount = await makeDiscount(p.db, { maxUses: 10 });
     const r = await orderFor(product, 3, { discountCode: discount.code });
     expect((await p.db.select().from(products).where(eq(products.id, product.id)))[0].stockQuantity).toBe(2);
@@ -122,7 +122,8 @@ describe("custom print requests", () => {
     expect(accepted.ok).toBe(true);
     if (!accepted.ok) return;
     const [order] = await p.db.select().from(orders).where(eq(orders.orderNumber, accepted.orderNumber));
-    expect(order).toMatchObject({ subtotal: 45_000, deliveryFee: 6_000, total: 51_000, paymentMethod: "COD", customRequestId: sub.id });
+    // Flat 5,000 IQD delivery (the legacy 6,000 zone fee is ignored); 45,000 is below the deposit threshold.
+    expect(order).toMatchObject({ subtotal: 45_000, deliveryFee: 5_000, total: 50_000, paymentMethod: "COD", customRequestId: sub.id, status: "PENDING", depositRequired: false });
     // Idempotent: accepting again returns the same order; the quote is now locked.
     const again = await acceptQuote(p.db, sub.id, { zoneId: zone.id, city: "Basra", district: "Ashar", addressLine: "Street 1" }, { appSecret: SECRET });
     expect(again.ok && again.orderNumber).toBe(accepted.orderNumber);

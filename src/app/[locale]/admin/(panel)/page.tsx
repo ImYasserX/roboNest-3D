@@ -54,7 +54,7 @@ export default async function AdminDashboard({ params, searchParams }: PageProps
         {d.profit ? (
           <Stat label={t("profit")} value={iqd(d.profit.grossProfit)} hint={t("profitHint", { percent: `${Math.round(d.profit.costCoverage * 100)}%` })} />
         ) : (
-          <Stat label={t("profit")} value="—" hint={t("profitHidden")} />
+          <Stat label={t("profit")} value={tc("notSet")} hint={t("profitHidden")} />
         )}
       </dl>
 

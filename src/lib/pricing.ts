@@ -7,11 +7,12 @@ import {
   type ProductStatus,
   type ProductType,
 } from "./domain";
+import { FLAT_DELIVERY_FEE_IQD } from "./payment-rules";
 
 // Pure pricing and validation rules. The server runs these against database
 // records on every cart read and again at checkout; nothing here trusts a
 // price sent by the browser. Client code may import this module only to show
-// a live preview — the server result is always authoritative.
+// a live preview; the server result is always authoritative.
 
 export type LocalizedText = { en: string; ar: string };
 
@@ -325,19 +326,21 @@ export function evaluateDiscount(
 // Delivery
 // ---------------------------------------------------------------------------
 
-export type DeliveryZoneRule = { id: string; fee: number; isActive: boolean };
-export type DeliveryAreaRule = { id: string; zoneId: string; fee: number; isActive: boolean };
+export type DeliveryZoneRule = { id: string; isActive: boolean };
+export type DeliveryAreaRule = { id: string; zoneId: string; isActive: boolean };
 
+/**
+ * Zones and areas decide only WHERE we deliver. The fee is the same for every
+ * supported location (FLAT_DELIVERY_FEE_IQD); the legacy per-zone `fee`
+ * columns are ignored on purpose.
+ */
 export function resolveDeliveryFee(
   zone: DeliveryZoneRule | null | undefined,
   area: DeliveryAreaRule | null | undefined,
 ): { ok: true; fee: number } | { ok: false; error: "zone_unavailable" | "area_unavailable" } {
   if (!zone || !zone.isActive) return { ok: false, error: "zone_unavailable" };
-  if (area) {
-    if (area.zoneId !== zone.id || !area.isActive) return { ok: false, error: "area_unavailable" };
-    return { ok: true, fee: area.fee };
-  }
-  return { ok: true, fee: zone.fee };
+  if (area && (area.zoneId !== zone.id || !area.isActive)) return { ok: false, error: "area_unavailable" };
+  return { ok: true, fee: FLAT_DELIVERY_FEE_IQD };
 }
 
 // ---------------------------------------------------------------------------

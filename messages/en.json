@@ -1,7 +1,7 @@
 {
   "meta": {
-    "defaultTitle": "RoboNest.3D — 3D printing & 3D models in Iraq",
-    "defaultDescription": "Made-to-order 3D prints, robotics parts, engineering tools and downloadable 3D models. Custom printing from your own files. Delivery across Iraq, cash on delivery.",
+    "defaultTitle": "RoboNest.3D: 3D printing, custom parts and 3D models",
+    "defaultDescription": "We design and print made-to-order parts, robotics components, tools and decorations in our own workshop, print customer files, and sell downloadable 3D models. Cash on delivery with a flat delivery fee.",
     "tagline": "Build. Print. Innovate."
   },
   "common": {
@@ -48,14 +48,13 @@
   },
   "nav": {
     "mainNav": "Main navigation",
-    "products": "Shop",
     "categories": "Categories",
-    "models": "3D models",
+    "models": "3D Models",
     "customPrinting": "Custom printing",
     "about": "About",
     "contact": "Contact",
     "search": "Search products",
-    "searchPlaceholder": "Search prints, parts, models…",
+    "searchPlaceholder": "Search prints, parts and models",
     "cart": "Cart",
     "cartWithCount": "Cart, {count, plural, =0 {empty} one {# item} other {# items}}",
     "account": "My account",
@@ -67,10 +66,11 @@
     "language": "Language",
     "switchTo": "العربية",
     "switchToLabel": "Switch to Arabic",
-    "trackOrder": "Track an order"
+    "orders": "My orders",
+    "searchSubmit": "Search"
   },
   "footer": {
-    "about": "RoboNest.3D is the 3D printing workshop of RoboNest, producing engineering parts, robotics components, tools and collectibles in Iraq.",
+    "about": "RoboNest.3D is the 3D printing workshop of RoboNest. We design, print and finish engineering parts, robotics components, tools and decorations ourselves, and print our customers' own designs.",
     "shop": "Shop",
     "help": "Help",
     "company": "Company",
@@ -80,10 +80,10 @@
     "privacy": "Privacy policy",
     "terms": "Terms & conditions",
     "contact": "Contact us",
-    "trackOrder": "Track an order",
     "rights": "© {year} RoboNest. All rights reserved.",
-    "payment": "Cash on delivery across all 19 Iraqi governorates.",
-    "legal": "Legal"
+    "payment": "Payment and deposits",
+    "legal": "Legal",
+    "hours": "Working hours"
   },
   "status": {
     "order": {
@@ -97,7 +97,10 @@
       "FAILED_DELIVERY": "Delivery attempt failed",
       "CANCELLED": "Cancelled",
       "RETURN_REQUESTED": "Return requested",
-      "RETURNED": "Returned"
+      "RETURNED": "Returned",
+      "AWAITING_DEPOSIT": "Awaiting deposit",
+      "DEPOSIT_SUBMITTED": "Deposit being checked",
+      "DEPOSIT_VERIFIED": "Deposit verified"
     },
     "orderDescription": {
       "PENDING": "We received your order and will call to confirm it shortly.",
@@ -110,7 +113,10 @@
       "FAILED_DELIVERY": "The courier could not complete delivery. We will contact you.",
       "CANCELLED": "This order was cancelled.",
       "RETURN_REQUESTED": "Your return request is being reviewed.",
-      "RETURNED": "The items were returned."
+      "RETURNED": "The items were returned.",
+      "AWAITING_DEPOSIT": "We received your order. Please transfer the deposit so we can confirm it.",
+      "DEPOSIT_SUBMITTED": "We received your transfer details and are checking the deposit.",
+      "DEPOSIT_VERIFIED": "Your deposit is verified. We will confirm your order shortly."
     },
     "payment": {
       "PENDING": "Pay on delivery",
@@ -138,20 +144,31 @@
       "SUBMITTED": "Submitted",
       "IN_REVIEW": "In review",
       "QUOTED": "Quote ready",
-      "ACCEPTED": "Accepted — order created",
+      "ACCEPTED": "Accepted, order created",
       "DECLINED": "Quote declined",
       "REJECTED": "Not possible",
       "CANCELLED": "Cancelled"
+    },
+    "deposit": {
+      "NOT_REQUIRED": "Not required",
+      "AWAITING": "Awaiting transfer",
+      "SUBMITTED": "Submitted, needs checking",
+      "VERIFIED": "Verified"
+    },
+    "depositMethod": {
+      "FIB": "FIB (First Iraqi Bank)",
+      "QICARD": "QiCard",
+      "ZAINCASH": "ZainCash"
     }
   },
   "home": {
-    "heroEyebrow": "3D printing workshop · Iraq",
+    "heroEyebrow": "Our own 3D printing workshop",
     "ctaShop": "Browse the shop",
     "ctaCustom": "Print your own file",
     "heroStat1": "Made to order",
     "heroStat1Detail": "Printed after you order, not sitting on a shelf",
-    "heroStat2": "19 governorates",
-    "heroStat2Detail": "Fixed delivery prices across Iraq",
+    "heroStat2": "Flat delivery fee",
+    "heroStat2Detail": "5,000 IQD to every location we deliver to",
     "heroStat3": "Cash on delivery",
     "heroStat3Detail": "Pay when your order arrives",
     "featured": "Featured prints",
@@ -175,28 +192,28 @@
     "how2Title": "We confirm and print",
     "how2Text": "We call to confirm, then print and check every piece.",
     "how3Title": "Delivered to your door",
-    "how3Text": "The courier brings it to you anywhere in Iraq.",
+    "how3Text": "We arrange delivery with you by phone and our delivery partner brings the order to your address.",
     "how4Title": "Pay on delivery",
-    "how4Text": "Cash to the courier. No card, no online payment.",
+    "how4Text": "Pay the courier in cash. Orders above 50,000 IQD need a 30% deposit first.",
     "whyTitle": "Why RoboNest.3D",
     "why1Title": "Built by engineers",
     "why1Text": "We design robotics and engineering parts ourselves, so fit and function come first.",
     "why2Title": "Customize everything",
-    "why2Text": "Material, colour, size, engraving — configured per product with the price shown up front.",
+    "why2Text": "Material, colour, size and engraving are configured per product, with the price shown before you order.",
     "why3Title": "Honest pricing",
-    "why3Text": "The price you see is calculated by our system; delivery fees are fixed per governorate.",
+    "why3Text": "Prices are calculated by our system from the options you choose, and delivery is a flat 5,000 IQD.",
     "why4Title": "Local support",
-    "why4Text": "Talk to a real person in Arabic or English on WhatsApp.",
-    "deliveryTitle": "Delivery throughout Iraq",
-    "deliveryText": "Fixed delivery prices for every governorate, from Duhok to Basra. You'll see the exact fee at checkout before you place the order.",
-    "deliveryCta": "Delivery prices",
+    "why4Text": "Talk to our team in Arabic or English by phone, email or WhatsApp.",
+    "deliveryTitle": "Simple, flat delivery",
+    "deliveryText": "Every location we deliver to has the same delivery fee. You see it in your cart and at checkout before you place the order.",
+    "deliveryCta": "Delivery information",
     "ctaTitle": "Ready to build something?",
     "ctaText": "Browse the catalog or send us your design.",
     "emptyCatalog": "The catalog is being prepared. Check back soon."
   },
   "catalog": {
-    "title": "Shop",
-    "description": "3D printed parts, tools, robotics components and collectibles — made to order in Iraq.",
+    "title": "3D Models",
+    "description": "3D printed parts, tools, robotics components, decorations and downloadable model files, designed and printed in our workshop.",
     "searchTitle": "Search",
     "searchDescription": "Find prints and 3D models by name, material, category or tag.",
     "searchResultsFor": "Results for “{query}”",
@@ -204,7 +221,7 @@
     "modelsTitle": "3D model library",
     "modelsDescriptionLong": "Digital 3D model files you can print yourself. Downloads unlock in your account once payment is confirmed.",
     "categoriesTitle": "Categories",
-    "categoriesDescription": "Browse the catalog by category.",
+    "categoriesDescription": "Browse everything we print and design, grouped by category.",
     "filters": "Filters",
     "showFilters": "Show filters",
     "category": "Category",
@@ -237,7 +254,12 @@
     "preview3d": "3D preview",
     "onSale": "Sale",
     "from": "From",
-    "productsIn": "{count, plural, =0 {No products yet} one {# product} other {# products}}"
+    "productsIn": "{count, plural, =0 {No products yet} one {# product} other {# products}}",
+    "categoriesEmpty": "Categories are being prepared.",
+    "browseAll": "Browse all 3D models",
+    "shopCategory": "Browse {name}",
+    "subcategoriesOf": "Subcategories of {name}",
+    "comingSoon": "No products yet"
   },
   "product": {
     "addToCart": "Add to cart",
@@ -327,13 +349,14 @@
     "updateQuantity": "Update quantity",
     "quantityFor": "Quantity for {name}",
     "subtotal": "Subtotal",
-    "deliveryAtCheckout": "Delivery is calculated at checkout from your governorate.",
     "checkout": "Proceed to checkout",
     "summary": "Order summary",
     "lineProblem": "This item needs attention:",
     "fixProblems": "Please fix or remove the highlighted items before checking out.",
     "digitalNeedsAccount": "Your cart has digital files. You'll need to sign in to check out.",
-    "priceNote": "Prices are recalculated by our system every time you view the cart."
+    "priceNote": "Prices are recalculated by our system every time you view the cart.",
+    "deliveryFlat": "Delivery (flat fee)",
+    "depositNotice": "Orders above {threshold} need a deposit of 30% of the products total before we confirm them. You will see the exact amount at checkout."
   },
   "checkout": {
     "title": "Checkout",
@@ -352,28 +375,27 @@
     "addressLine": "Street and house details",
     "addressHint": "Street, alley (zuqaq), house number or building.",
     "landmark": "Nearest landmark",
-    "landmarkHint": "E.g. next to a mosque, school or pharmacy — helps the courier find you.",
+    "landmarkHint": "For example next to a mosque, school or pharmacy. It helps the courier find you.",
     "deliveryNotes": "Notes for the courier",
     "orderNotes": "Order notes",
     "saveAddress": "Save this address to my account",
     "payment": "Payment",
     "codTitle": "Cash on delivery (COD)",
-    "codText": "Pay the courier in cash when your order arrives. No online payment is taken.",
+    "codText": "Pay the courier in cash when your order arrives. No card or online payment is taken on this website.",
     "codDigital": "For digital files, our team will contact you to arrange payment. Downloads unlock once payment is confirmed.",
     "discountCode": "Discount code",
     "applyCode": "Apply",
     "discount": "Discount",
     "deliveryFee": "Delivery",
     "deliveryChooseGovernorate": "Choose a governorate",
-    "deliveryEta": "Estimated delivery: {min}–{max} days after dispatch",
     "total": "Total to pay on delivery",
     "totalDigital": "Total",
     "placeOrder": "Place order",
     "placing": "Placing your order…",
     "reviewNote": "By placing the order you agree to our terms. Totals are calculated by our system.",
     "signInForDigital": "Sign in or create an account to buy digital files.",
-    "signInOptional": "Have an account? Sign in to track orders easily.",
-    "noDelivery": "No delivery needed — your order contains only digital files.",
+    "signInOptional": "Have an account? Sign in to see your orders in one place.",
+    "noDelivery": "No delivery needed: your order contains only digital files.",
     "codeApplied": "Code applied: {amount} off",
     "errors": {
       "invalid_input": "Please check the highlighted fields.",
@@ -384,23 +406,32 @@
       "address_required": "Please complete your delivery address.",
       "zone_unavailable": "Delivery to this governorate is not available right now.",
       "area_unavailable": "Delivery to this area is not available right now.",
-      "stock_changed": "Sorry — an item just sold out. Please review your cart.",
+      "stock_changed": "Sorry, an item just sold out. Please review your cart.",
       "discount_exhausted": "This discount code has reached its usage limit.",
       "discount_invalid": "This discount code is not valid.",
       "discount_not_started": "This discount code is not active yet.",
       "discount_expired": "This discount code has expired.",
       "discount_min_subtotal": "Your order is below the minimum for this code.",
       "discount_exhausted_code": "This discount code has reached its usage limit.",
-      "failed": "We could not place your order. Please try again."
-    }
+      "failed": "We could not place your order. Please try again.",
+      "deposit_unconfigured": "Orders of this size need a deposit, and deposit payment is not available online yet. Please contact us to place this order."
+    },
+    "deliveryArrangement": "Delivery costs {fee} to every location we deliver to. After you order, we call you to confirm the order and arrange the delivery. Delivery times are estimates, not guaranteed dates.",
+    "depositTitle": "A deposit is required for this order",
+    "depositText": "Orders above {threshold} need a deposit of 30% of the products total after discounts ({amount}) before we confirm them. Delivery is not included in this calculation. After you place the order, the order page shows how to pay it. The rest is paid in cash on delivery.",
+    "depositUnavailableTitle": "Orders of this size cannot be placed online yet",
+    "depositUnavailableText": "Orders above {threshold} need a deposit, and deposit payment is not available online yet. Please contact us to place this order, or reduce the order total.",
+    "depositLine": "Deposit (by transfer)",
+    "balanceLine": "Balance on delivery",
+    "policyNote": "Please read our <terms>terms</terms>, <delivery>delivery</delivery>, <payment>payment and deposit</payment> and <returns>returns</returns> policies before ordering."
   },
   "order": {
     "confirmedTitle": "Thank you! Your order is placed.",
     "confirmedText": "Order {number} has been received. We'll call you on {phone} to confirm.",
-    "saveLink": "Keep this page's link to follow your order. You can also track it with your order number and phone.",
+    "saveLink": "Keep this page's link to come back to your order. If you have an account, your orders are also listed under My orders.",
     "title": "Order {number}",
     "placedOn": "Placed on {date}",
-    "progress": "Order progress",
+    "progress": "Order status",
     "items": "Items",
     "summary": "Summary",
     "deliveryTo": "Delivery address",
@@ -416,15 +447,61 @@
     "stepDone": "completed",
     "stepCurrent": "current step",
     "stepUpcoming": "upcoming",
-    "trackTitle": "Track your order",
-    "trackText": "Enter your order number and the mobile number you used at checkout.",
-    "orderNumber": "Order number",
-    "orderNumberHint": "Looks like RN-260924-ABC234",
-    "track": "Track order",
-    "notFound": "We couldn't find an order with those details.",
     "notFoundTitle": "Order not found",
     "notFoundText": "This link is invalid or the order doesn't belong to your account.",
-    "whatsappMessage": "Hello RoboNest.3D, I have a question about order {number}."
+    "whatsappMessage": "Hello RoboNest.3D, I have a question about order {number}.",
+    "myOrders": "My orders",
+    "deposit": {
+      "title": "Insurance deposit",
+      "why": "This order is above the deposit threshold, so a deposit of {amount} (30% of the products total after discounts) is needed before we confirm it and start production.",
+      "instructionsIntro": "Transfer {amount} using one of these methods, then enter the transaction reference below.",
+      "method": "Payment method",
+      "reference": "Transaction reference",
+      "referenceHint": "The reference or transaction number shown in your payment app after the transfer.",
+      "submit": "Send transfer details",
+      "sending": "Sending…",
+      "submitted": "Thank you. We received your transfer details. Our team will check the transfer and confirm your order.",
+      "manualNote": "Sending the reference does not mark the deposit as paid. A member of our team checks every transfer by hand.",
+      "noMethods": "Deposit payment methods are not available right now. Please contact us to complete this order.",
+      "underReview": "We received your transfer details ({method}, reference {reference}). Our team is checking the transfer.",
+      "verified": "Your deposit of {amount} was received and verified.",
+      "depositLine": "Deposit",
+      "balanceLine": "Balance on delivery",
+      "errors": {
+        "invalid_input": "Please choose a method and enter a valid reference (4 to 64 characters).",
+        "method_unavailable": "This payment method is not available. Please choose another one.",
+        "not_awaiting": "This order is not waiting for a deposit.",
+        "conflict": "This order was just updated. Please reload the page.",
+        "not_found": "Order not found.",
+        "failed": "We could not save your transfer details. Please try again.",
+        "manual_not_approved": "Manual transfer reporting is not available right now. Please use the online payment option or contact us.",
+        "amount_mismatch": "The amount does not match the required deposit."
+      },
+      "online": {
+        "title": "Pay the deposit of {amount} with the FIB app",
+        "start": "Pay with FIB",
+        "starting": "Preparing payment…",
+        "readableCode": "Payment code",
+        "openApp": "Open in the FIB app",
+        "qrAlt": "FIB payment QR code",
+        "check": "I have paid, check now",
+        "checking": "Checking with FIB…",
+        "declined": "The last FIB payment was declined or expired. You can start a new one.",
+        "note": "Your deposit is marked as paid only after FIB confirms the payment to our server.",
+        "errors": {
+          "unpaid": "FIB has not confirmed the payment yet. If you just paid, wait a moment and check again.",
+          "declined": "FIB reports this payment as declined or expired. Please start a new payment.",
+          "amount_mismatch": "The paid amount does not match the deposit. Our team will contact you.",
+          "provider_error": "We could not reach FIB right now. Please try again shortly.",
+          "provider_failed": "We could not create the FIB payment. Please try again shortly.",
+          "paid_but_order_closed": "This order was closed before the payment arrived. Our team will contact you about the payment.",
+          "online_unavailable": "Online payment is not available right now.",
+          "not_awaiting": "This order is not waiting for a deposit.",
+          "not_found": "Payment not found.",
+          "unknown_payment": "Payment not found."
+        }
+      }
+    }
   },
   "account": {
     "title": "My account",
@@ -461,7 +538,7 @@
     "download": "Download {file}",
     "downloadsLeft": "{count, plural, one {# download left} other {# downloads left}}",
     "awaitingPayment": "Awaiting payment confirmation",
-    "limitReached": "Download limit reached — contact us for help.",
+    "limitReached": "Download limit reached. Contact us for help.",
     "noFiles": "Files are being prepared. We'll add them soon.",
     "noRequests": "No custom requests yet",
     "noRequestsText": "Upload your own model to get a quote.",
@@ -481,7 +558,7 @@
     "signInTitle": "Sign in",
     "signInText": "Use the mobile number and password of your RoboNest.3D account.",
     "registerTitle": "Create an account",
-    "registerText": "Track orders, download digital files and save addresses.",
+    "registerText": "See your orders, download digital files and save addresses. We verify your mobile number by SMS.",
     "name": "Full name",
     "phone": "Mobile number",
     "password": "Password",
@@ -495,7 +572,7 @@
     "haveAccount": "Already have an account?",
     "forgot": "Forgot your password?",
     "forgotTitle": "Reset your password",
-    "forgotText": "We don't send SMS codes. Message us on WhatsApp from the number on your account and our team will send you a secure reset link that works for one hour.",
+    "forgotText": "Message us on WhatsApp from the number on your account and our team will send you a secure reset link that works for one hour.",
     "forgotCta": "Request a reset link on WhatsApp",
     "forgotMessage": "Hello RoboNest.3D, I forgot my account password. My account number is:",
     "resetTitle": "Choose a new password",
@@ -503,18 +580,48 @@
     "resetSubmit": "Save new password",
     "resetDone": "Password updated. You can sign in now.",
     "resetInvalid": "This reset link is invalid or has expired. Please request a new one.",
-    "guestNote": "You can also check out as a guest — no account needed for physical products.",
+    "guestNote": "You can also check out as a guest. No account is needed for physical products.",
     "errors": {
       "invalid_credentials": "The mobile number or password is incorrect.",
-      "phone_taken": "An account with this mobile number already exists. Try signing in.",
       "invalid_phone": "Enter a valid Iraqi mobile number (07XX XXX XXXX).",
       "password_too_short": "Password must be at least 8 characters.",
       "password_too_long": "Password is too long.",
       "name_required": "Please enter your name.",
       "invalid_name": "Please enter a valid name.",
       "invalid_input": "Please check the form.",
-      "invalid_token": "This reset link is invalid or has expired."
-    }
+      "invalid_token": "This reset link is invalid or has expired.",
+      "rate_limited": "Too many attempts. Please wait a few minutes and try again.",
+      "verification_unavailable": "Phone verification is not available right now. Please try again later or contact us.",
+      "send_failed": "We could not send the SMS. Please check the number and try again later.",
+      "invalid_code": "That code is not correct. Please check the SMS and try again.",
+      "too_many_attempts": "Too many wrong codes. Please start again.",
+      "expired": "This verification has expired. Please start again.",
+      "provider_error": "We could not check the code right now. Please try again.",
+      "too_many_sends": "No more codes can be sent for this attempt. Please start again later.",
+      "resend_wait": "Please wait a minute before asking for a new code.",
+      "phone_unverified": "Please verify your mobile number to continue.",
+      "channel_unavailable": "This way of sending codes is not available right now."
+    },
+    "forgotSmsText": "Enter the mobile number of your account. If it has an account, we send a verification code by SMS.",
+    "verifyTitle": "Verify your mobile number",
+    "codeSentTo": "If this number can receive SMS, we sent a code to",
+    "code": "Verification code",
+    "codeHint": "The code from the SMS. It expires after 10 minutes.",
+    "verify": "Verify",
+    "verifying": "Checking…",
+    "resend": "Send a new code",
+    "codeResent": "If this number can receive SMS, a new code is on its way.",
+    "startOver": "Use a different number",
+    "verifyExpired": "This verification has expired or was already used. Please start again.",
+    "alreadyRegisteredTitle": "This number already has an account",
+    "alreadyRegisteredText": "Your number is verified and already linked to an account. Sign in, or reset your password if you forgot it.",
+    "sendCode": "Send code",
+    "sendingCode": "Sending…",
+    "newPassword": "New password",
+    "registrationUnavailableTitle": "Registration is not available yet",
+    "registrationUnavailableText": "New accounts need SMS verification of the mobile number, which is not set up yet. You can still order physical products as a guest.",
+    "codeSentToWhatsapp": "If this number uses WhatsApp, we sent a code by WhatsApp to",
+    "sendBySms": "Send the code by SMS instead"
   },
   "wishlist": {
     "title": "Saved items",
@@ -537,27 +644,27 @@
     "scaleHint": "100% prints the model at its original size.",
     "quantity": "Number of copies",
     "notes": "Notes for our team",
-    "notesHint": "Tolerances, infill, finish, deadline — anything that helps us quote.",
+    "notesHint": "Tolerances, infill, finish or a deadline: anything that helps us prepare the quote.",
     "yourDetails": "Your details",
     "fullName": "Full name",
     "phone": "Mobile number",
     "submit": "Send request",
     "submitting": "Sending…",
     "submittedTitle": "Request received",
-    "submittedText": "Request {number} was sent. We'll review your files and send a quote — usually within one working day.",
+    "submittedText": "Request {number} was sent. We will review your files and send you a quote here.",
     "keepLink": "Keep this page's link to check your quote.",
     "process": "How custom printing works",
     "step1": "Upload your file and choose material, colour and size.",
     "step2": "Our engineers check printability and send you a quote.",
     "step3": "Accept the quote and enter your delivery address.",
-    "step4": "We print, check and deliver. You pay cash on delivery.",
+    "step4": "We print, check and deliver. You pay cash on delivery (orders above 50,000 IQD need a deposit first).",
     "requestTitle": "Custom request {number}",
     "quoteTitle": "Your quote",
     "quotePrice": "Price for the whole job",
     "quoteDays": "Production time",
     "quoteMessage": "Message from our team",
     "acceptTitle": "Accept the quote",
-    "acceptText": "Enter your delivery address. We'll create your order for {price} plus delivery, payable in cash on delivery.",
+    "acceptText": "Enter your delivery address. We will create your order for {price} plus the flat delivery fee, payable in cash on delivery.",
     "accept": "Accept and place order",
     "accepting": "Placing order…",
     "decline": "Decline quote",
@@ -580,28 +687,37 @@
       "zone_unavailable": "Delivery to this governorate is not available right now.",
       "area_unavailable": "Delivery to this area is not available right now.",
       "failed": "Something went wrong. Please try again.",
-      "not_found": "Request not found."
-    }
+      "not_found": "Request not found.",
+      "deposit_unconfigured": "Orders of this size need a deposit, and online deposits are not available yet. Please contact us to accept this quote."
+    },
+    "depositNotice": "This quote is above {threshold}, so the order will need an insurance deposit before we confirm it. The order page explains how to pay it.",
+    "noNotes": "No notes"
   },
   "contact": {
     "title": "Contact us",
-    "description": "Questions about an order, a custom print or a bulk quote? We reply in Arabic and English.",
+    "description": "Questions about an order, a custom print or a quote for a larger job? Write to us in Arabic or English.",
     "formTitle": "Send us a message",
     "name": "Your name",
-    "phone": "Mobile number",
     "subject": "Subject",
     "message": "Message",
     "send": "Send message",
     "sending": "Sending…",
-    "sent": "Thanks — your message was sent. We'll get back to you soon.",
+    "sent": "Thank you. Your message was sent to our team, and we will reply to your email.",
     "whatsapp": "WhatsApp",
     "phoneLabel": "Phone",
     "email": "Email",
     "hours": "Working hours",
-    "address": "Location",
     "errors": {
-      "invalid": "Please fill in all fields. The message needs at least 10 characters."
-    }
+      "invalid": "Please check the highlighted fields.",
+      "name": "Please enter your name (2 to 80 characters).",
+      "email": "Please enter a valid email address.",
+      "subject": "Please enter a subject (2 to 120 characters).",
+      "message": "Please write a message of 10 to 3,000 characters with no more than 3 links.",
+      "delivery_failed": "Sorry, your message could not be sent right now. Please email us at support@robonest.tech or call us.",
+      "too_fast": "That was very quick. Please check your message and send it again."
+    },
+    "emailField": "Your email",
+    "messageHint": "10 to 3,000 characters."
   },
   "errors": {
     "notFoundTitle": "Page not found",
@@ -616,23 +732,27 @@
     "updated": "Last updated: {date}",
     "about": {
       "title": "About RoboNest.3D",
-      "description": "RoboNest.3D is the 3D printing workshop of RoboNest, an Iraqi robotics and engineering brand.",
+      "description": "RoboNest.3D is the 3D printing workshop of RoboNest. We design, print and finish our products ourselves.",
       "sections": [
         {
           "title": "Who we are",
-          "body": "RoboNest started as a robotics and engineering project. RoboNest.3D is our dedicated 3D printing workshop: we design and print functional parts, robotics components, tools, educational models and decorative pieces for customers across Iraq."
+          "body": "RoboNest started as a robotics and engineering project. RoboNest.3D is its dedicated 3D printing workshop. We are not a reseller: we design and print functional parts, robotics components, tools, educational models and decorative pieces in our own workshop."
         },
         {
           "title": "How we work",
-          "body": "Almost everything we sell is made to order. When you order, we confirm by phone, print your items, inspect them and hand them to our delivery partner. You pay in cash when the order arrives."
+          "body": "Almost everything we sell is made to order. After you order, we contact you by phone to confirm it, then print your items, inspect them and hand them to our delivery partner. You pay in cash when the order arrives. Orders above {threshold} need a 30% deposit first."
         },
         {
           "title": "Custom printing",
-          "body": "Engineers, students, makers and businesses send us their own 3D files. We review every file for printability, suggest the right material and give you a price before printing."
+          "body": "Engineers, students, makers and businesses send us their own 3D files. We review every file for printability, suggest a suitable material and send a price before anything is printed."
         },
         {
           "title": "Digital models",
-          "body": "Some of our designs are also available as downloadable STL, 3MF or OBJ files so you can print them on your own printer."
+          "body": "Some of our designs are also available as downloadable STL, 3MF or OBJ files, so you can print them on your own printer."
+        },
+        {
+          "title": "Contact",
+          "body": "Email {email}, or call {phones}. Working hours: {hours}."
         }
       ]
     },
@@ -642,19 +762,19 @@
       "items": [
         {
           "q": "How do I pay?",
-          "a": "Cash on delivery. You pay the courier when your order arrives. We do not take card or online payments."
+          "a": "Cash on delivery: you pay the courier when your order arrives. Orders above 50,000 IQD (products total after discounts) need a 30% deposit first. We never ask for card details on the website."
         },
         {
-          "q": "Do you deliver to my governorate?",
-          "a": "We deliver to all 19 Iraqi governorates through our delivery partner. The fixed delivery fee for your governorate is shown at checkout before you place the order."
+          "q": "How much is delivery?",
+          "a": "Delivery is a flat 5,000 IQD for every location we deliver to. You see it in your cart and at checkout before you place the order."
         },
         {
           "q": "How long does an order take?",
-          "a": "Made-to-order items usually need the production time shown on the product page, plus 1–5 days for delivery depending on your governorate. In-stock items ship sooner."
+          "a": "Made-to-order items need the production time shown on the product page, plus delivery. These are estimates, not guaranteed dates, and we tell you by phone if anything changes."
         },
         {
           "q": "Can I change or cancel my order?",
-          "a": "Yes, before it goes into production. Contact us on WhatsApp or through the contact page with your order number."
+          "a": "Yes, before it goes into production. Contact us by phone, email or the contact page with your order number."
         },
         {
           "q": "How does custom printing work?",
@@ -662,133 +782,206 @@
         },
         {
           "q": "How do I get my digital files?",
-          "a": "Digital files require an account. After payment is confirmed, the files appear under Account → Downloads."
+          "a": "Digital files require an account. After payment is confirmed, the files appear under Account, then Downloads."
         },
         {
           "q": "Is the price on the website final?",
-          "a": "Yes. Our system calculates the price from the options you choose and the fixed delivery fee. We never ask for more than the total shown on your order."
+          "a": "Yes. Our system calculates the price from the options you choose plus the flat delivery fee. A deposit, when required, is part of that total, not an extra charge."
         },
         {
           "q": "Which materials do you use?",
-          "a": "PLA, PLA+, PETG, ABS, TPU and resin depending on the product. Each product page lists its materials."
+          "a": "PLA, PLA+, PETG, ABS, TPU and resin, depending on the product. Each product page lists its materials."
         }
       ]
     },
     "delivery": {
-      "title": "Delivery information",
-      "description": "Fixed delivery prices for every Iraqi governorate. Pay cash on delivery.",
-      "intro": "Delivery is handled by our delivery partner. The fee is fixed per governorate (and, in some cities, per area) and is calculated automatically at checkout.",
-      "tableCaption": "Delivery fees by governorate",
-      "governorate": "Governorate",
-      "fee": "Fee",
-      "eta": "Delivery time after dispatch",
-      "areas": "Areas with a different fee",
+      "title": "Delivery and shipping",
+      "description": "A flat delivery fee for every location we deliver to, and how we arrange delivery with you.",
+      "intro": "The fee is the same everywhere we deliver and is added automatically in your cart and at checkout. Our delivery partner brings the order to the address you give us.",
       "sections": [
         {
-          "title": "When will my order ship?",
-          "body": "Made-to-order items ship after production and quality check. The production time is shown on each product page. In-stock items usually ship within 1–2 working days."
+          "title": "Order confirmation",
+          "body": "When you place an order you see a confirmation page with your order number. Keep its link to return to the order. If you have an account, the order also appears under My orders. We then call you on the number you gave us to confirm the order and arrange delivery."
         },
         {
-          "title": "What if I'm not available?",
-          "body": "The courier will call you. If delivery fails, we contact you to arrange another attempt."
+          "title": "When will my order arrive?",
+          "body": "Made-to-order items are delivered after production and a quality check; each product page shows its usual production time. Production and delivery times are estimates, not guaranteed dates. We tell you about delays by phone."
+        },
+        {
+          "title": "Order status",
+          "body": "The order page shows the status our team sets as your order moves forward (for example confirmed, printing, ready for delivery). We do not offer real-time courier tracking."
+        },
+        {
+          "title": "If you are not available",
+          "body": "The courier will call you. If a delivery attempt fails, we contact you to arrange another attempt."
         },
         {
           "title": "Digital files",
-          "body": "Digital 3D models are not shipped. They are downloaded from your account after payment is confirmed."
+          "body": "Digital 3D models are not shipped and have no delivery fee. They are downloaded from your account after payment is confirmed."
         }
-      ]
+      ],
+      "flatFee": "Delivery costs {fee} to every location we deliver to.",
+      "locationsTitle": "Where we deliver"
     },
     "returns": {
-      "title": "Returns & refunds",
-      "description": "Our policy for made-to-order, in-stock and digital products.",
+      "title": "Returns, refunds and cancellations",
+      "description": "How to report a problem with an order and how cancellations work.",
       "sections": [
         {
           "title": "Check your order on delivery",
-          "body": "Please inspect your items when the courier arrives. If something is damaged or wrong, tell the courier and contact us within 3 days of delivery with photos."
+          "body": "Please inspect your items when the courier arrives. If something is damaged, missing or not what you ordered, tell the courier and contact us as soon as possible with your order number and photos."
         },
         {
-          "title": "Defective or incorrect items",
-          "body": "If an item has a printing defect or does not match your order, we reprint it or refund it at no cost to you."
+          "title": "Problems with an item",
+          "body": "If an item has a printing defect or does not match your order, contact us. We review each case with you and explain what we can do for your order."
         },
         {
           "title": "Made-to-order and customized items",
-          "body": "Items printed to your specification (custom size, colour, engraving or your own file) cannot be returned for change of mind, because they are made specifically for you. Defects are always covered."
+          "body": "Most items are printed after you order, to the material, colour, size, engraving or file you chose. Please check your choices carefully before you order."
         },
         {
-          "title": "Standard in-stock items",
-          "body": "Unused in-stock items can be returned within 3 days of delivery. The return delivery fee is paid by the customer unless the item was defective."
-        },
-        {
-          "title": "Digital files",
-          "body": "Digital files are not refundable once downloaded. If a file is corrupted or missing, contact us and we will fix it."
+          "title": "Cancelling an order",
+          "body": "You can ask to cancel an order before it goes into production. Contact us with your order number. For orders with a deposit, see the payment and deposit policy."
         },
         {
           "title": "How refunds are paid",
-          "body": "Because orders are paid in cash, refunds are arranged with you directly (cash or transfer) after we receive and check the returned item."
+          "body": "Because orders are paid in cash or by manual transfer, any refund we agree is arranged with you directly."
+        },
+        {
+          "title": "Return periods",
+          "body": "We have not published a fixed return period yet. Until we do, contact us about any problem and we will handle it with you case by case."
         }
       ]
     },
     "privacy": {
       "title": "Privacy policy",
-      "description": "What personal data RoboNest.3D collects, why, and how it is protected.",
+      "description": "What personal information RoboNest.3D collects, why, who processes it, and your choices.",
       "sections": [
         {
-          "title": "What we collect",
-          "body": "Only what we need to fulfil your order: your name, mobile number, delivery address, order details and any files you upload for custom printing. If you create an account, we also store a securely hashed password."
+          "title": "Orders and delivery",
+          "body": "To fulfil an order we collect your name, mobile number, delivery address, any notes, and the order details (products, options, prices, discount, delivery fee and status history). We share your name, phone number and address with our delivery partner only to deliver your order."
         },
         {
-          "title": "Why we use it",
-          "body": "To confirm and deliver your orders, contact you about them, provide downloads you purchased and answer your messages. We share your name, phone and address with our delivery partner only to deliver your order."
+          "title": "Accounts and phone verification",
+          "body": "If you create an account, we store your name, mobile number, language preference and a hashed password (we never store the password itself). To verify your number we send it to our SMS verification provider, Twilio, which sends and checks the code. We do not store or see the code."
         },
         {
-          "title": "What we never do",
-          "body": "We do not sell your data, do not use advertising trackers and do not store payment cards (we only accept cash on delivery)."
+          "title": "Payments and deposits",
+          "body": "Payment is in cash on delivery, so we never receive card details. For deposits, we store the payment method, the transaction reference (from you or from the payment provider), the deposit amount and whether it was verified. If you pay a deposit through FIB, FIB processes that payment and tells our server its status and amount."
         },
         {
-          "title": "Cookies",
-          "body": "We use only essential cookies: your sign-in session, your cart, and your language preference. No analytics or advertising cookies."
+          "title": "Files you upload",
+          "body": "Files you upload for custom printing or product options are stored privately. They are never published and are only available to our staff to prepare and produce your order. Files you buy as digital products are only available to your account."
+        },
+        {
+          "title": "Contact form",
+          "body": "When you use the contact form we store your name, email, subject and message, and send them by email to our team through our email provider, Resend, so we can reply."
+        },
+        {
+          "title": "Cookies and technical data",
+          "body": [
+            "We use only essential cookies: your sign-in session, your cart, your language and theme choice, and a short-lived cookie while you verify your phone. We do not use analytics or advertising cookies.",
+            "For security and to limit abuse we record request counts and administrator actions, using a one-way hash of your IP address rather than the address itself."
+          ]
+        },
+        {
+          "title": "Who processes data for us",
+          "body": "The website, database and file storage run on Cloudflare. Email from the contact form is sent through Resend. SMS verification uses Twilio when it is enabled. New-order alerts to our owners are sent through Telegram and contain only the order number, amounts, deposit status, order type and a link to our admin area, never your name, phone or address."
         },
         {
           "title": "Security",
-          "body": "Data is stored on Cloudflare infrastructure. Passwords are hashed, sessions are protected cookies, uploaded files are private, and staff access is restricted and logged."
+          "body": "Passwords are stored as salted hashes, sign-in sessions use protected cookies whose tokens we store only as hashes, uploaded files are private, and staff access is restricted by role and logged."
         },
         {
-          "title": "Your rights",
-          "body": "You can ask us to correct or delete your data at any time through the contact page. Order records required for accounting may be kept in anonymized form."
+          "title": "How long we keep data",
+          "body": "We have not set fixed retention periods yet. We keep order records while they are needed to fulfil, support and account for orders."
+        },
+        {
+          "title": "Your requests",
+          "body": "You can ask us to show, correct or delete your personal information by contacting us at {email}. We may need to keep some order records where they are required for accounting or legal reasons, and we will tell you if that applies."
         }
       ]
     },
     "terms": {
-      "title": "Terms & conditions",
+      "title": "Terms and conditions",
       "description": "The terms that apply when you order from RoboNest.3D.",
       "sections": [
         {
-          "title": "Orders",
-          "body": "An order is confirmed after we contact you by phone. We may decline an order that cannot be produced or delivered, in which case nothing is charged."
+          "title": "Orders and acceptance",
+          "body": "Placing an order sends us a request. An order is confirmed after we contact you by phone and, for orders that need one, after your deposit is verified. We may decline an order that we cannot produce or deliver, and we tell you if we do."
         },
         {
           "title": "Prices",
-          "body": "Prices are in Iraqi dinars (IQD). The total shown when you place the order — products, options, discount and fixed delivery fee — is the amount you pay on delivery."
+          "body": "Prices are in Iraqi dinars (IQD) and are calculated by our system from the options you choose. The total shown when you place the order, including options, any discount and the flat {fee} delivery fee, is the amount you pay."
         },
         {
           "title": "Payment",
-          "body": "Payment is cash on delivery. For digital-only orders, our team contacts you to arrange payment before files are unlocked."
+          "body": "Payment is cash on delivery. Orders above {threshold} need an insurance deposit first, as described in the payment and deposit policy. For digital-only orders, our team contacts you to arrange payment before files are unlocked."
         },
         {
-          "title": "Custom prints and uploaded files",
-          "body": "You confirm you have the right to print the files you upload. We may refuse files that infringe others' rights or describe prohibited items such as weapons or weapon parts."
+          "title": "Product descriptions",
+          "body": "We describe and photograph our products as accurately as we can. 3D-printed items can show small differences in colour, surface finish and layer lines from the photos."
+        },
+        {
+          "title": "Custom prints and your files",
+          "body": [
+            "You confirm that you have the right to print the files and designs you send us and that they do not infringe anyone else's rights. You remain responsible for the content, dimensions and fitness for purpose of your own designs.",
+            "We may refuse files or requests that infringe others' rights or describe prohibited items, such as weapons or weapon parts."
+          ]
         },
         {
           "title": "Digital files",
-          "body": "Digital models are licensed for personal use. You may print them for yourself but may not resell or redistribute the files."
+          "body": "Digital models are licensed for your personal use. You may print them for yourself, but you may not resell or redistribute the files."
         },
         {
-          "title": "Liability",
+          "title": "Using printed parts",
           "body": "3D-printed parts are made with care but are not certified for safety-critical use. Please use functional parts within reasonable limits."
         },
         {
+          "title": "Accounts",
+          "body": "Keep your password private. An account requires a mobile number that you verify by SMS."
+        },
+        {
           "title": "Contact",
-          "body": "For any question about these terms, contact us through the contact page or WhatsApp."
+          "body": "For any question about these terms, email {email} or call {phones} ({hours})."
+        }
+      ]
+    },
+    "payment": {
+      "title": "Payment and deposit policy",
+      "description": "How you pay for orders, and when and how an insurance deposit is required.",
+      "summary": "Pay in cash on delivery. Orders above {threshold} need a deposit of 30% of the products total first.",
+      "sections": [
+        {
+          "title": "Cash on delivery",
+          "body": "You pay the courier in cash when your order arrives. This website never asks for card details."
+        },
+        {
+          "title": "When a deposit is required",
+          "body": [
+            "Orders whose products total, after discounts and without the {fee} delivery fee, is more than {threshold} need a deposit before we confirm them. An order of exactly {threshold} does not need a deposit.",
+            "The deposit is 30% of that products total, rounded down to whole dinars. For example, a products total of 60,000 IQD needs a deposit of 18,000 IQD. The delivery fee is not part of this calculation.",
+            "The deposit is part of your order total, not an extra charge: the rest is paid in cash on delivery."
+          ]
+        },
+        {
+          "title": "How to pay the deposit",
+          "body": [
+            "After you place the order, the order page shows the ways to pay the deposit that are available at that time.",
+            "A deposit is marked as paid only after it is confirmed: either by the payment provider directly to our server, or by a member of our team who has checked the transfer in our provider account. Entering a reference or sending a screenshot does not by itself mark the deposit as paid. Your order is confirmed and production starts only after the deposit is verified."
+          ]
+        },
+        {
+          "title": "If a payment cannot be confirmed",
+          "body": "If a payment is declined, expires, or a transfer cannot be found, the order page tells you and you can try again. You can also contact us."
+        },
+        {
+          "title": "Digital files",
+          "body": "For digital-only orders, our team contacts you to arrange payment. Downloads unlock once payment is confirmed."
+        },
+        {
+          "title": "Deposits on cancelled orders",
+          "body": "Our rules for returning a deposit when an order is cancelled have not been finalized yet. If you need to cancel an order after paying a deposit, contact us and we will explain the options for your order."
         }
       ]
     }
@@ -817,11 +1010,14 @@
       "storefront": "View store",
       "signOut": "Sign out",
       "openMenu": "Open admin menu",
-      "closeMenu": "Close admin menu"
+      "closeMenu": "Close admin menu",
+      "payments": "Payments & deposits",
+      "notifications": "Notifications"
     },
     "role": {
       "SUPER_ADMIN": "Super Admin",
-      "OPERATIONS": "Operations"
+      "OPERATIONS": "Operations",
+      "OWNER": "Owner"
     },
     "common": {
       "search": "Search",
@@ -867,7 +1063,8 @@
       "download": "Download",
       "notSet": "Not set",
       "sortOrder": "Sort order",
-      "required": "required"
+      "required": "required",
+      "never": "Never"
     },
     "login": {
       "title": "Admin sign in",
@@ -996,7 +1193,25 @@
       "errors": {
         "invalid_transition": "That status change isn't allowed from the current status.",
         "not_found": "Order not found.",
-        "failed": "Update failed."
+        "failed": "Update failed.",
+        "not_awaiting": "This order is not waiting for a deposit decision.",
+        "conflict": "This order was just changed. Reload and try again.",
+        "amount_mismatch": "The received amount must equal the required deposit exactly. If the customer paid a different amount, contact them before verifying."
+      },
+      "deposit": {
+        "title": "Deposit",
+        "amount": "Required deposit",
+        "status": "Deposit status",
+        "method": "Method",
+        "reference": "Customer's reference",
+        "verifiedAt": "Verified at",
+        "balance": "Balance due on delivery",
+        "checkHint": "Open the provider account (FIB, QiCard or ZainCash) and confirm a transfer with this reference and amount arrived. Only then verify. A reference or screenshot alone is not proof.",
+        "verify": "Verify deposit",
+        "reject": "Transfer not found",
+        "noPermission": "Only Owners and Super Admins can verify deposits.",
+        "receivedAmount": "Amount received (IQD)",
+        "receivedAmountHint": "Type the amount you see in the provider account. It must be exactly {amount}."
       }
     },
     "products": {
@@ -1206,17 +1421,17 @@
       "update": "Update"
     },
     "delivery": {
-      "title": "Delivery prices",
-      "text": "Fixed fees per governorate. Changes apply to new checkouts immediately and are logged.",
-      "fee": "Fee (IQD)",
-      "eta": "Delivery days",
-      "etaMin": "Min days",
-      "etaMax": "Max days",
-      "areas": "Area overrides",
+      "title": "Delivery locations",
+      "text": "Choose where we deliver. Changes apply to new checkouts immediately and are logged.",
+      "eta": "Internal delivery estimate (days)",
+      "etaMin": "Min days (internal)",
+      "etaMax": "Max days (internal)",
+      "areas": "Areas",
       "addArea": "Add area",
       "areaNameEn": "Area (English)",
       "areaNameAr": "Area (Arabic)",
-      "noAreas": "No area overrides: the governorate fee applies everywhere."
+      "noAreas": "No areas listed for this governorate.",
+      "flatFee": "Every supported location costs {fee}. The fee is a business rule in code and cannot be changed per governorate or area here."
     },
     "customRequests": {
       "title": "Custom print requests",
@@ -1287,12 +1502,9 @@
       "heroSubtitle": "Hero subtitle",
       "store": "Store contact details",
       "whatsapp": "WhatsApp number",
-      "phone": "Phone number",
-      "email": "Email",
       "instagram": "Instagram URL",
       "facebook": "Facebook URL",
       "address": "Location",
-      "hours": "Working hours",
       "customPrint": "Custom printing options",
       "materials": "Materials",
       "colors": "Colours",
@@ -1301,23 +1513,42 @@
         "invalid_input": "Please check the values.",
         "invalid_phone": "Enter a valid Iraqi mobile number.",
         "invalid_url": "Use a full https:// URL."
-      }
+      },
+      "fixedContact": "Business contact details (fixed)",
+      "fixedContactHint": "Email, phone numbers and working hours are confirmed business facts kept in code (src/lib/business.ts), so they are identical on every page."
     },
     "settings": {
       "title": "Settings",
       "security": "Security",
       "requireTotp": "Require two-factor authentication for all admin roles",
-      "requireTotpHint": "Super Admins always need it. When on, Operations admins must enroll at their next sign-in.",
+      "requireTotpHint": "Owners and Super Admins always need it. When on, Operations admins must enroll at their next sign-in.",
       "environment": "Environment",
       "siteUrl": "Site URL",
       "secretStatus": "APP_SECRET configured",
-      "secretsNote": "Secrets are managed with wrangler secret and are never shown here."
+      "secretsNote": "Secrets are managed with wrangler secret and are never shown here.",
+      "integration": {
+        "email": "Contact form email (Resend) configured",
+        "telegram": "Telegram order alerts configured",
+        "sms": "SMS phone verification (Twilio Verify) configured",
+        "whatsapp": "WhatsApp OTP (Meta Cloud API) configured",
+        "fib": "FIB online deposits configured"
+      },
+      "email": "Contact form email",
+      "emailReady": "Configured. Sender domain: {domain}. Make sure this domain is verified in Resend.",
+      "emailSenderNote": "Recipient: CONTACT_FORM_EMAIL (contact@robonest.tech). Sender: CONTACT_FROM_EMAIL, a separate address on a domain verified in Resend.",
+      "emailTest": "Send test email",
+      "emailTestSent": "Resend accepted the test email. Check the contact inbox.",
+      "errors": {
+        "rate_limited": "Too many test emails. Wait a few minutes.",
+        "email_not_configured": "Email is not configured. See the list above.",
+        "email_rejected": "Resend did not accept the email. Check the API key and that the sender domain is verified."
+      }
     },
     "admins": {
       "title": "Admin users",
       "add": "Add admin",
       "username": "Username",
-      "usernameHint": "3–32 characters: a–z, 0–9, dot, dash, underscore.",
+      "usernameHint": "3 to 32 characters: a to z, 0 to 9, dot, dash, underscore.",
       "displayName": "Display name",
       "role": "Role",
       "password": "Initial password",
@@ -1331,10 +1562,12 @@
       "you": "(you)",
       "errors": {
         "username_taken": "Username already exists.",
-        "last_super_admin": "There must be at least one active Super Admin.",
+        "last_super_admin": "There must be at least one active Owner or Super Admin.",
         "invalid_input": "Please check the form.",
-        "password_too_short": "Use at least 12 characters."
-      }
+        "password_too_short": "Use at least 12 characters.",
+        "owner_protected": "Owner accounts are protected. Only another owner can reset their password or 2FA, and owners cannot be demoted, disabled or deleted."
+      },
+      "ownerProtected": "Owner account: cannot be demoted, disabled or deleted. Only another owner can reset its password or 2FA."
     },
     "audit": {
       "title": "Audit log",
@@ -1354,7 +1587,93 @@
       "ARCHIVED": "Archived",
       "markRead": "Mark read",
       "archive": "Archive",
-      "none": "No messages."
+      "none": "No messages.",
+      "delivery_SENT": "Emailed to the team",
+      "delivery_FAILED": "Email delivery failed",
+      "delivery_NOT_CONFIGURED": "Email not configured"
+    },
+    "payments": {
+      "title": "Payments & deposits",
+      "description": "Deposit rules for high-value orders, online payment status, and the temporary manual transfer fallback.",
+      "rules": "Rules (set in code)",
+      "ruleDelivery": "Delivery: flat {fee} for every supported location.",
+      "ruleThreshold": "A deposit is required when the order amount is strictly greater than {threshold} (exactly {threshold} does not need one).",
+      "ruleBase": "The amount compared is the products subtotal after discounts, without the delivery fee.",
+      "notConfiguredTitle": "Deposits cannot be paid: high-value orders are blocked",
+      "notConfiguredText": "Until an online provider is enabled or an owner approves the manual transfer fallback (with at least one method and instructions), customers cannot place orders above the threshold online.",
+      "enabled": "Offer this method",
+      "instructions": "Transfer instructions",
+      "instructionsHint": "Account name and number or wallet number, plus anything the customer must include. Shown on the order page.",
+      "errors": {
+        "instructions_required": "Each enabled method needs instructions in English and Arabic.",
+        "invalid_input": "Please check the values.",
+        "owner_required": "Only an owner can approve or withdraw the manual fallback."
+      },
+      "ruleRate": "The deposit is {percent}% of that amount, rounded down to whole dinars (for example {base} → {example}).",
+      "online": "Online payment (FIB)",
+      "onlineEnabled": "FIB online deposits are enabled. A deposit counts as paid only when FIB's status endpoint confirms the exact amount.",
+      "onlineDisabled": "Not enabled. Requires FIB merchant credentials (FIB_BASE_URL, FIB_CLIENT_ID, FIB_CLIENT_SECRET) and FIB_ONLINE_DEPOSITS=enabled, after a verified sandbox payment.",
+      "onlineHint": "QiCard and ZainCash have merchant APIs too, but no integration is built and no merchant account is configured.",
+      "manual": "Manual transfer verification (temporary fallback)",
+      "manualExplain": "Customers transfer the deposit themselves and enter the transaction reference. A staff member must check the provider account and type the received amount before verifying. A reference or screenshot is never proof on its own.",
+      "manualApprove": "Owners approve the manual fallback",
+      "manualApproveHint": "Only owners can change this. The approval is recorded with your name and the date, and in the audit log.",
+      "manualOwnerOnly": "Only an owner can approve or withdraw the manual fallback.",
+      "manualApprovedBy": "Approved by {name} on {date}."
+    },
+    "notifications": {
+      "title": "Notifications",
+      "description": "Telegram alerts to the owners for new orders and deposit submissions.",
+      "config": "Telegram configuration",
+      "configured": "Configured for {count, plural, one {# chat} other {# chats}}.",
+      "notConfiguredTitle": "Telegram is not configured",
+      "notConfiguredText": "Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_IDS as server secrets. Orders are still saved; their alerts wait here and are sent once configuration exists.",
+      "testHint": "Sends a fixed test message to every configured chat. No custom text can be sent from here.",
+      "sendTest": "Send test message",
+      "testSent": "Delivered to every configured chat.",
+      "events": "Recent events",
+      "none": "No notifications yet.",
+      "retry": "Retry",
+      "attempts": "{count, plural, one {# attempt} other {# attempts}}",
+      "delivered": "{count, plural, =0 {not delivered} one {delivered to # chat} other {delivered to # chats}}",
+      "kind": {
+        "ORDER_PLACED": "New order",
+        "DEPOSIT_SUBMITTED": "Deposit submitted",
+        "TEST": "Test message",
+        "DEPOSIT_PAID": "Deposit paid online"
+      },
+      "status": {
+        "PENDING": "Pending",
+        "SENDING": "Sending",
+        "SENT": "Sent",
+        "FAILED": "Failed",
+        "NOT_CONFIGURED": "Waiting for configuration"
+      },
+      "errors": {
+        "rate_limited": "Too many test messages. Wait a few minutes.",
+        "test_failed": "Delivery failed. See the error on the event below.",
+        "test_not_configured": "Telegram is not configured.",
+        "test_skipped": "This event is already sent or being sent."
+      },
+      "fewerThanOwners": "Fewer than two recipients are configured. Both owners should be in TELEGRAM_CHAT_IDS.",
+      "deliveredOf": "delivered to {count} of {total}",
+      "hint": {
+        "notConfigured": "Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_IDS, then retry.",
+        "token": "Telegram rejected the bot token. Create a new token with @BotFather (/token) and update the secret.",
+        "notStarted": "This person has not pressed Start on the bot, or blocked it. Ask them to open the bot and press Start, then retry.",
+        "chatNotFound": "Wrong chat id, or the person never started the bot. Re-check the id with scripts/telegram-chat-ids.mjs.",
+        "rateLimited": "Telegram is rate limiting. It will be retried automatically.",
+        "network": "Telegram could not be reached. It will be retried automatically.",
+        "other": "See the error text; retry after fixing the cause."
+      },
+      "invalidChatIds": "{count, plural, one {# entry} other {# entries}} in TELEGRAM_CHAT_IDS {count, plural, one {is} other {are}} not a valid chat id and {count, plural, one {is} other {are}} ignored. Fix the value so no owner is missed."
     }
+  },
+  "theme": {
+    "label": "Theme",
+    "system": "System",
+    "light": "Light",
+    "dark": "Dark",
+    "toggleLabel": "Theme: {current}. Switch to {next}"
   }
 }

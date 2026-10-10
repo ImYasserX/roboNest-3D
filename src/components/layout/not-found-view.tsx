@@ -12,7 +12,7 @@ export function NotFoundView() {
       <p className="max-w-md text-muted">{t("notFoundText")}</p>
       <div className="flex flex-wrap justify-center gap-3">
         <ButtonLink href="/">{t("goHome")}</ButtonLink>
-        <ButtonLink href="/products" variant="outline">{tn("products")}</ButtonLink>
+        <ButtonLink href="/products" variant="outline">{tn("models")}</ButtonLink>
       </div>
     </Container>
   );

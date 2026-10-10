@@ -4,13 +4,13 @@ import { routing } from "./i18n/routing";
 
 // Edge middleware (Next 16 calls this convention "proxy"; the Node-runtime
 // proxy.ts is only experimentally supported by OpenNext on Cloudflare, so the
-// officially supported Edge middleware is used — see ARCHITECTURE.md).
+// officially supported Edge middleware is used; see ARCHITECTURE.md).
 // Runs before every matched request:
 //  1. CSRF defence-in-depth: state-changing requests must come from our own
 //     origin (Server Actions also check Origin, but accept a missing header).
 //  2. Content-Security-Policy with a per-request nonce for Next's scripts.
 //  3. Cheap admin gate (cookie presence). Real authorization happens on the
-//     server in requireAdminPage/requireAdminAction — this only avoids
+//     server in requireAdminPage/requireAdminAction; this only avoids
 //     rendering admin shells for anonymous visitors.
 //  4. Locale negotiation and /ar | /en prefixes (next-intl).
 
@@ -62,7 +62,10 @@ function buildCsp(nonce: string): string {
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (!SAFE_METHODS.has(request.method) && !isSameOrigin(request)) {
+  // Payment provider callbacks come from the provider's servers. The handler
+  // trusts nothing in the body: it only re-checks status with the provider.
+  const isProviderCallback = pathname === "/api/payments/fib/callback";
+  if (!SAFE_METHODS.has(request.method) && !isSameOrigin(request) && !isProviderCallback) {
     return new NextResponse("Forbidden", { status: 403 });
   }
 
@@ -96,5 +99,5 @@ export default function middleware(request: NextRequest) {
 
 export const config = {
   // Everything except Next internals and static files in /public.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|robots.txt|sitemap.xml|brand/).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|icon.svg|manifest.webmanifest|robots.txt|sitemap.xml|brand/).*)"],
 };

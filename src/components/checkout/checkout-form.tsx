@@ -11,15 +11,14 @@ import { CheckboxField, SelectField, TextAreaField, TextField, controlClass } fr
 import { Alert } from "@/components/ui/misc";
 import { CashIcon } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
+import { Link } from "@/i18n/navigation";
+import { DEPOSIT_THRESHOLD_IQD, FLAT_DELIVERY_FEE_IQD, depositAmountFor, depositBase, requiresDeposit } from "@/lib/payment-rules";
 
 export type CheckoutZone = {
   id: string;
   nameEn: string;
   nameAr: string;
-  fee: number;
-  etaDaysMin: number;
-  etaDaysMax: number;
-  areas: { id: string; nameEn: string; nameAr: string; fee: number }[];
+  areas: { id: string; nameEn: string; nameAr: string }[];
 };
 
 type Props = {
@@ -29,12 +28,14 @@ type Props = {
   hasPhysical: boolean;
   hasDigital: boolean;
   signedIn: boolean;
+  /** Whether a deposit can currently be paid (online provider or owner-approved manual fallback). */
+  depositPayable: boolean;
   initial: { fullName: string; phone: string; zoneId: string; areaId: string; city: string; district: string; addressLine: string; landmark: string };
 };
 
 const FIELD_ERROR_KEYS = ["invalid_phone", "zone_unavailable", "area_unavailable"];
 
-export function CheckoutForm({ idempotencyKey, zones, subtotal, hasPhysical, hasDigital, signedIn, initial }: Props) {
+export function CheckoutForm({ idempotencyKey, zones, subtotal, hasPhysical, hasDigital, signedIn, depositPayable, initial }: Props) {
   const t = useTranslations("checkout");
   const tc = useTranslations("common");
   const tcart = useTranslations("cart");
@@ -49,11 +50,13 @@ export function CheckoutForm({ idempotencyKey, zones, subtotal, hasPhysical, has
   const [checkingCode, startCodeTransition] = useTransition();
 
   const zone = zones.find((z) => z.id === values.zoneId);
-  const area = zone?.areas.find((a) => a.id === values.areaId);
-  // Preview only; the server recalculates the fee from the database.
-  const fee = hasPhysical ? (area?.fee ?? zone?.fee ?? null) : 0;
+  // Preview only; the server recalculates the fee and any deposit itself.
+  const fee = hasPhysical ? (zone ? FLAT_DELIVERY_FEE_IQD : null) : 0;
   const discountAmount = discount && discount.code === values.discountCode.trim().toUpperCase() ? discount.amount : 0;
   const total = subtotal - Math.min(discountAmount, subtotal) + (fee ?? 0);
+  const needsDeposit = requiresDeposit(depositBase(subtotal, discountAmount));
+  // Preview of the server rule: 30% of the products subtotal after discount (rounded down).
+  const deposit = needsDeposit && depositPayable ? depositAmountFor(depositBase(subtotal, discountAmount)) : null;
 
   const set = (key: keyof typeof values) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const value = e.target.type === "checkbox" ? (e.target as HTMLInputElement).checked : e.target.value;
@@ -126,7 +129,7 @@ export function CheckoutForm({ idempotencyKey, zones, subtotal, hasPhysical, has
                 <option value="">{t("chooseGovernorate")}</option>
                 {zones.map((z) => (
                   <option key={z.id} value={z.id}>
-                    {pick(locale, z.nameEn, z.nameAr)} — {formatIQD(z.fee, locale)}
+                    {pick(locale, z.nameEn, z.nameAr)}
                   </option>
                 ))}
               </SelectField>
@@ -135,7 +138,7 @@ export function CheckoutForm({ idempotencyKey, zones, subtotal, hasPhysical, has
                   <option value="">{t("otherArea")}</option>
                   {zone.areas.map((a) => (
                     <option key={a.id} value={a.id}>
-                      {pick(locale, a.nameEn, a.nameAr)} — {formatIQD(a.fee, locale)}
+                      {pick(locale, a.nameEn, a.nameAr)}
                     </option>
                   ))}
                 </SelectField>
@@ -147,7 +150,7 @@ export function CheckoutForm({ idempotencyKey, zones, subtotal, hasPhysical, has
               <TextAreaField id="deliveryNotes" label={t("deliveryNotes")} optionalLabel={tc("optional")} wrapperClassName="sm:col-span-2" rows={2} value={values.deliveryNotes} onChange={set("deliveryNotes")} maxLength={300} className="min-h-20" />
             </div>
             {signedIn ? <CheckboxField id="saveAddress" label={t("saveAddress")} checked={values.saveAddress} onChange={set("saveAddress")} /> : null}
-            {zone ? <p className="text-sm text-muted">{t("deliveryEta", { min: zone.etaDaysMin, max: zone.etaDaysMax })}</p> : null}
+            <p className="text-sm text-muted">{t("deliveryArrangement", { fee: formatIQD(FLAT_DELIVERY_FEE_IQD, locale) })}</p>
           </fieldset>
         ) : (
           <Alert tone="info">{t("noDelivery")}</Alert>
@@ -165,6 +168,15 @@ export function CheckoutForm({ idempotencyKey, zones, subtotal, hasPhysical, has
               {hasDigital ? <span className="mt-1 block text-sm text-muted">{t("codDigital")}</span> : null}
             </span>
           </label>
+          {needsDeposit ? (
+            !depositPayable ? (
+              <Alert tone="warning" title={t("depositUnavailableTitle")}>{t("depositUnavailableText", { threshold: formatIQD(DEPOSIT_THRESHOLD_IQD, locale) })}</Alert>
+            ) : (
+              <Alert tone="warning" title={t("depositTitle")}>
+                {t("depositText", { threshold: formatIQD(DEPOSIT_THRESHOLD_IQD, locale), amount: formatIQD(deposit ?? 0, locale) })}
+              </Alert>
+            )
+          ) : null}
           <TextAreaField id="orderNotes" label={t("orderNotes")} optionalLabel={tc("optional")} rows={2} value={values.orderNotes} onChange={set("orderNotes")} maxLength={500} className="min-h-20" />
         </fieldset>
       </div>
@@ -204,7 +216,7 @@ export function CheckoutForm({ idempotencyKey, zones, subtotal, hasPhysical, has
           </div>
           <div className="flex justify-between">
             <dt className="text-muted">{t("discount")}</dt>
-            <dd className="ltr-nums">{discountAmount ? `− ${formatIQD(discountAmount, locale)}` : "—"}</dd>
+            <dd className="ltr-nums">{discountAmount ? `− ${formatIQD(discountAmount, locale)}` : formatIQD(0, locale)}</dd>
           </div>
           <div className="flex justify-between">
             <dt className="text-muted">{t("deliveryFee")}</dt>
@@ -216,6 +228,18 @@ export function CheckoutForm({ idempotencyKey, zones, subtotal, hasPhysical, has
               {formatIQD(total, locale)}
             </dd>
           </div>
+          {deposit !== null ? (
+            <>
+              <div className="flex justify-between">
+                <dt className="text-muted">{t("depositLine")}</dt>
+                <dd className="ltr-nums">{formatIQD(deposit, locale)}</dd>
+              </div>
+              <div className="flex justify-between font-semibold">
+                <dt>{t("balanceLine")}</dt>
+                <dd className="ltr-nums">{formatIQD(total - deposit, locale)}</dd>
+              </div>
+            </>
+          ) : null}
         </dl>
         <button
           type="submit"
@@ -226,6 +250,14 @@ export function CheckoutForm({ idempotencyKey, zones, subtotal, hasPhysical, has
           {pending ? t("placing") : t("placeOrder")}
         </button>
         <p className="text-xs text-muted">{t("reviewNote")}</p>
+        <p className="text-xs text-muted">
+          {t.rich("policyNote", {
+            terms: (c) => <Link href="/terms" className="underline">{c}</Link>,
+            delivery: (c) => <Link href="/delivery" className="underline">{c}</Link>,
+            payment: (c) => <Link href="/payment" className="underline">{c}</Link>,
+            returns: (c) => <Link href="/returns" className="underline">{c}</Link>,
+          })}
+        </p>
       </aside>
     </form>
   );

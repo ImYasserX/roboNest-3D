@@ -15,7 +15,7 @@ import {
 } from "./sessions";
 
 // Cookie names use the __Host- prefix in production, which the browser only
-// accepts with Secure, Path=/ and no Domain — preventing subdomain injection.
+// accepts with Secure, Path=/ and no Domain, preventing subdomain injection.
 const prefix = isProduction ? "__Host-" : "";
 export const CUSTOMER_COOKIE = `${prefix}rn_session`;
 export const ADMIN_COOKIE = `${prefix}rn_admin`;
@@ -148,4 +148,22 @@ export async function requireAdminAction(
   if (!opts.allowEnrollment && (await needsTotpEnrollment(session))) throw new AdminAuthError("forbidden");
   if (permission && !hasPermission(session.admin.role, permission)) throw new AdminAuthError("forbidden");
   return { ...session.admin, sessionId: session.sessionId };
+}
+
+// ---------------------------------------------------------------------------
+// Phone verification challenge (raw token in an HttpOnly cookie; DB stores its hash)
+// ---------------------------------------------------------------------------
+
+export const VERIFY_COOKIE = `${prefix}rn_verify`;
+
+export async function setVerifyCookie(token: string) {
+  (await cookies()).set(VERIFY_COOKIE, token, { ...baseCookie, sameSite: "lax", maxAge: 15 * 60 });
+}
+
+export async function readVerifyCookie() {
+  return (await cookies()).get(VERIFY_COOKIE)?.value ?? null;
+}
+
+export async function clearVerifyCookie() {
+  (await cookies()).delete({ name: VERIFY_COOKIE, path: "/", secure: isProduction });
 }

@@ -2,7 +2,6 @@ import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import type { Database } from "@/server/db/client";
 import { auditLogs, contactMessages, products, wishlistItems } from "@/server/db/schema";
-import { normalizeIraqiPhone } from "@/lib/phone";
 import { CONTACT_STATUSES } from "@/lib/domain";
 
 // Wishlist -------------------------------------------------------------------
@@ -30,30 +29,6 @@ export async function wishlistProductIds(db: Database, userId: string) {
 }
 
 // Contact --------------------------------------------------------------------
-
-const noControl = (s: string) => !/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(s);
-
-export const contactSchema = z.object({
-  name: z.string().trim().min(2).max(80).refine(noControl),
-  phone: z.string().trim().max(24).transform((v, ctx) => {
-    const p = normalizeIraqiPhone(v);
-    if (!p) {
-      ctx.addIssue({ code: "custom", message: "invalid_phone" });
-      return z.NEVER;
-    }
-    return p;
-  }),
-  subject: z.string().trim().min(2).max(120).refine(noControl),
-  message: z.string().trim().min(10).max(3000).refine(noControl),
-  locale: z.enum(["ar", "en"]),
-});
-
-export async function submitContactMessage(db: Database, raw: unknown) {
-  const parsed = contactSchema.safeParse(raw);
-  if (!parsed.success) return { ok: false as const, fields: parsed.error.issues.map((i) => String(i.path[0])) };
-  await db.insert(contactMessages).values(parsed.data);
-  return { ok: true as const };
-}
 
 export async function listContactMessages(db: Database, status?: string) {
   const s = z.enum(CONTACT_STATUSES).safeParse(status);

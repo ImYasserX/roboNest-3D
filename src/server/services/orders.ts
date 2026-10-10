@@ -17,7 +17,11 @@ import {
 import { hmacSha256Hex, sha256Hex, timingSafeEqual } from "@/server/auth/crypto";
 import { normalizeIraqiPhone } from "@/lib/phone";
 import { computeTotals, evaluateDiscount, resolveDeliveryFee, type DiscountErrorCode } from "@/lib/pricing";
+import { depositBase, resolveDepositTerms, type DepositConfig } from "@/lib/payment-rules";
+import type { OrderStatus } from "@/lib/domain";
 import { getCartView, ownerKeyFor, type CartOwner } from "./cart";
+import { orderPlacedEvent } from "./notifications";
+import { getSetting } from "./settings";
 
 // ---------------------------------------------------------------------------
 // Input validation
@@ -61,6 +65,7 @@ export type CheckoutError =
   | "area_unavailable"
   | "stock_changed"
   | "discount_exhausted"
+  | "deposit_unconfigured"
   | `discount_${DiscountErrorCode}`
   | "failed";
 
@@ -107,6 +112,36 @@ export async function quoteDelivery(db: Database, zoneId: string | undefined, ar
 }
 
 // ---------------------------------------------------------------------------
+// Deposit terms (shared with custom-print quote acceptance)
+// ---------------------------------------------------------------------------
+
+/**
+ * How a deposit can be paid right now. `onlineAvailable` comes from server
+ * configuration (a real provider with credentials); the manual fallback needs
+ * recorded owner approval and at least one enabled transfer method.
+ */
+export async function loadDepositConfig(db: Database, onlineAvailable = false): Promise<DepositConfig> {
+  const payments = await getSetting(db, "payments");
+  const anyManualMethod = Object.values(payments.methods).some((m) => m.enabled);
+  return { onlineAvailable, manualAvailable: payments.manualFallback.approved && anyManualMethod };
+}
+
+/** Initial status and deposit columns for a new order, or an error when a required deposit cannot be paid. */
+export async function initialPaymentState(db: Database, totals: { subtotal: number; discountTotal: number; total: number }, onlineAvailable = false) {
+  const terms = resolveDepositTerms(await loadDepositConfig(db, onlineAvailable), depositBase(totals.subtotal, totals.discountTotal));
+  if ("error" in terms) return { ok: false as const, error: "deposit_unconfigured" as const };
+  return {
+    ok: true as const,
+    status: (terms.required ? "AWAITING_DEPOSIT" : "PENDING") as OrderStatus,
+    columns: {
+      depositRequired: terms.required,
+      depositAmount: terms.amount,
+      depositStatus: terms.required ? ("AWAITING" as const) : ("NOT_REQUIRED" as const),
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Place order
 // ---------------------------------------------------------------------------
 
@@ -114,6 +149,8 @@ export type PlaceOrderContext = {
   owner: CartOwner;
   userId: string | null;
   appSecret: string;
+  /** A real online deposit provider is configured (see server/payments.ts). */
+  onlineDepositAvailable?: boolean;
   now?: Date;
 };
 
@@ -179,6 +216,8 @@ export async function placeOrder(db: Database, rawInput: unknown, ctx: PlaceOrde
   }
 
   const totals = computeTotals(cart.lines.map((l) => l.lineTotal), discountAmount, deliveryFee);
+  const payment = await initialPaymentState(db, totals, ctx.onlineDepositAvailable ?? false);
+  if (!payment.ok) return { ok: false, error: payment.error };
   const orderId = crypto.randomUUID();
   const orderNumber = generateOrderNumber("RN", now);
   const accessToken = await orderAccessToken(ctx.appSecret, orderId);
@@ -192,11 +231,12 @@ export async function placeOrder(db: Database, rawInput: unknown, ctx: PlaceOrde
       accessTokenHash: await sha256Hex(accessToken),
       customerName: input.fullName,
       customerPhone: input.phone,
-      status: "PENDING",
+      status: payment.status,
       paymentMethod: "COD",
       paymentStatus: "PENDING",
       currency: "IQD",
       ...totals,
+      ...payment.columns,
       discountId: discountRow?.id ?? null,
       discountCode: discountRow?.code ?? null,
       hasPhysical: cart.hasPhysical,
@@ -237,12 +277,24 @@ export async function placeOrder(db: Database, rawInput: unknown, ctx: PlaceOrde
     db.insert(orderStatusHistory).values({
       orderId,
       fromStatus: null,
-      toStatus: "PENDING",
+      toStatus: payment.status,
       actorType: "CUSTOMER",
       actorId: ctx.userId,
       actorLabel: input.fullName,
       createdAt: now,
     }),
+    // Outbox row in the same transaction: delivered after commit (server/notify.ts).
+    orderPlacedEvent(db, {
+      id: orderId,
+      orderNumber,
+      total: totals.total,
+      deliveryFee: totals.deliveryFee,
+      depositRequired: payment.columns.depositRequired,
+      depositAmount: payment.columns.depositAmount,
+      hasPhysical: cart.hasPhysical,
+      hasDigital: cart.hasDigital,
+      isCustomPrint: false,
+    }, now),
     // Stock decrements: the products_stock_ck CHECK aborts the whole batch
     // if a concurrent order already took the last units.
     ...cart.lines
@@ -352,6 +404,11 @@ async function toCustomerView(db: Database, order: typeof orders.$inferSelect) {
     discountCode: order.discountCode,
     deliveryFee: order.deliveryFee,
     total: order.total,
+    depositRequired: order.depositRequired,
+    depositAmount: order.depositAmount,
+    depositStatus: order.depositStatus,
+    depositMethod: order.depositMethod,
+    depositReference: order.depositReference,
     hasPhysical: order.hasPhysical,
     hasDigital: order.hasDigital,
     customerName: order.customerName,
@@ -401,20 +458,6 @@ export async function getOrderByAccessToken(db: Database, orderNumber: string, t
   if (!order) return null;
   if (!timingSafeEqual(await sha256Hex(token), order.accessTokenHash)) return null;
   return toCustomerView(db, order);
-}
-
-/** Order lookup form: order number + the phone used at checkout (rate-limited by caller). */
-export async function findOrderByNumberAndPhone(db: Database, orderNumber: string, phoneInput: string) {
-  const phone = normalizeIraqiPhone(phoneInput);
-  const number = orderNumber.trim().toUpperCase();
-  if (!phone || !isOrderNumber(number)) return null;
-  const [order] = await db
-    .select({ id: orders.id, orderNumber: orders.orderNumber, phone: orders.customerPhone })
-    .from(orders)
-    .where(eq(orders.orderNumber, number))
-    .limit(1);
-  if (!order || !timingSafeEqual(order.phone, phone)) return null;
-  return order;
 }
 
 export async function listOrdersForUser(db: Database, userId: string, limit = 50) {

@@ -28,22 +28,17 @@ const nameField = z
 export const registerSchema = z.object({ name: nameField, phone: phoneField, password: passwordField });
 export const loginSchema = z.object({ phone: phoneField, password: z.string().min(1).max(128) });
 
-export async function registerCustomer(db: Database, raw: unknown, locale: string) {
+/**
+ * Validates a registration. Nothing is written to `users` here: the account is
+ * created only when the SMS code is accepted (services/phone-verification.ts),
+ * and the response is the same whether or not the number already has an
+ * account, so registration cannot be used to discover customers.
+ */
+export async function prepareRegistration(raw: unknown) {
   const parsed = registerSchema.safeParse(raw);
   if (!parsed.success) return { ok: false as const, error: "invalid_input" as const, issues: parsed.error.issues.map((i) => i.message) };
   const { name, phone, password } = parsed.data;
-  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.phone, phone)).limit(1);
-  if (existing) return { ok: false as const, error: "phone_taken" as const, issues: [] };
-  try {
-    const [user] = await db
-      .insert(users)
-      .values({ name, phone, passwordHash: await hashPassword(password), locale: locale === "en" ? "en" : "ar" })
-      .returning({ id: users.id });
-    return { ok: true as const, userId: user.id };
-  } catch {
-    // Unique index race: another request registered the same phone first.
-    return { ok: false as const, error: "phone_taken" as const, issues: [] };
-  }
+  return { ok: true as const, phone, pending: { name, passwordHash: await hashPassword(password) } };
 }
 
 /** Same error and similar timing for unknown phone, wrong password or disabled account. */
@@ -53,9 +48,21 @@ export async function authenticateCustomer(db: Database, raw: unknown) {
   const [user] = await db.select().from(users).where(eq(users.phone, parsed.data.phone)).limit(1);
   const valid = await verifyPassword(parsed.data.password, user?.passwordHash ?? (await getDummyHash()));
   if (!user || !valid || user.status !== "ACTIVE") return { ok: false as const, error: "invalid_credentials" as const };
+  // Correct password but the number was never verified: verify before any session.
+  if (!user.phoneVerifiedAt) return { ok: false as const, error: "phone_unverified" as const, userId: user.id, phone: user.phone };
   await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id));
   return { ok: true as const, user: { id: user.id, name: user.name, phone: user.phone } };
 }
+
+/** Recovery lookup. The caller must answer identically whether or not an account exists. */
+export async function findUserIdForRecovery(db: Database, phoneInput: unknown) {
+  const phone = phoneField.safeParse(phoneInput);
+  if (!phone.success) return { ok: false as const };
+  const [user] = await db.select({ id: users.id, status: users.status }).from(users).where(eq(users.phone, phone.data)).limit(1);
+  return { ok: true as const, phone: phone.data, userId: user && user.status === "ACTIVE" ? user.id : null };
+}
+
+export { passwordField as customerPasswordSchema };
 
 export async function changeCustomerPassword(db: Database, userId: string, current: string, next: string) {
   const parsedNext = passwordField.safeParse(next);

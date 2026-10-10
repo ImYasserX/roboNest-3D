@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "./crypto";
 
-// RFC 6238 TOTP (HMAC-SHA1, 30 s step, 6 digits) — compatible with Google
+// RFC 6238 TOTP (HMAC-SHA1, 30 s step, 6 digits), compatible with Google
 // Authenticator, Microsoft Authenticator, 1Password, Aegis, etc.
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";

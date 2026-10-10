@@ -40,8 +40,8 @@ export default async function AuditLogPage({ params, searchParams }: PageProps<"
           { key: "d", header: tc("date"), cell: (r) => formatDate(r.createdAt, lang, true) },
           { key: "a", header: t("actor"), cell: (r) => r.actorLabel },
           { key: "x", header: t("action"), cell: (r) => <code dir="ltr" className="text-xs">{r.action}</code> },
-          { key: "t", header: t("target"), cell: (r) => (r.targetType ? <span dir="ltr" className="text-xs">{r.targetType}:{r.targetId?.slice(0, 8)}</span> : "—") },
-          { key: "m", header: t("details"), cell: (r) => (r.metadata ? <code dir="ltr" className="block max-w-md whitespace-pre-wrap break-all text-xs text-muted">{JSON.stringify(r.metadata)}</code> : "—") },
+          { key: "t", header: t("target"), cell: (r) => (r.targetType ? <span dir="ltr" className="text-xs">{r.targetType}:{r.targetId?.slice(0, 8)}</span> : tc("none")) },
+          { key: "m", header: t("details"), cell: (r) => (r.metadata ? <code dir="ltr" className="block max-w-md whitespace-pre-wrap break-all text-xs text-muted">{JSON.stringify(r.metadata)}</code> : tc("none")) },
         ]}
       />
       {result.hasMore ? (

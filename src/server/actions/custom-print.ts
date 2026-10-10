@@ -6,6 +6,9 @@ import { getCurrentUser, getOwnerKey } from "@/server/auth/current";
 import { getDb } from "@/server/db/client";
 import { getAppSecret } from "@/server/env";
 import { getRequestMeta } from "@/server/request-meta";
+import { scheduleNotifications } from "@/server/notify";
+import { getDepositProvider } from "@/server/payments";
+import { eventIdsForOrder } from "@/server/services/notifications";
 import { acceptQuote, declineQuote, getCustomRequestForCustomer, submitCustomRequest } from "@/server/services/custom-print";
 import { consumeRateLimit, consumeScoped } from "@/server/services/rate-limit";
 
@@ -38,8 +41,9 @@ export async function acceptQuoteAction(access: { requestNumber: string; token: 
   // The caller must hold the request link token or own the request.
   const request = await authorizedRequest(access);
   if (!request) return { ok: false as const, error: "not_found" };
-  const result = await acceptQuote(db, request.id, address, { appSecret: await getAppSecret() });
+  const result = await acceptQuote(db, request.id, address, { appSecret: await getAppSecret(), onlineDepositAvailable: (await getDepositProvider()) !== null });
   if (!result.ok) return { ok: false as const, error: result.error };
+  scheduleNotifications(await eventIdsForOrder(db, result.orderId));
   return { ok: true as const, url: `/${await getLocale()}/orders/${result.orderNumber}?t=${result.accessToken}` };
 }
 

@@ -4,6 +4,9 @@ import { getCurrentUser } from "@/server/auth/current";
 import { getDb } from "@/server/db/client";
 import { getOrderByAccessToken, getOrderForUser } from "@/server/services/orders";
 import { getSetting } from "@/server/services/settings";
+import { enabledDepositMethods } from "@/server/services/deposits";
+import { latestOnlinePayment } from "@/server/services/online-deposits";
+import { getDepositProvider } from "@/server/payments";
 import { OrderView } from "@/components/order/order-view";
 import { ButtonLink } from "@/components/ui/button";
 import { Container, EmptyState } from "@/components/ui/misc";
@@ -29,16 +32,17 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/[l
   if (!order) {
     return (
       <Container className="py-16">
-        <EmptyState title={t("notFoundTitle")} description={t("notFoundText")} action={<ButtonLink href="/track">{t("trackTitle")}</ButtonLink>} />
+        <EmptyState title={t("notFoundTitle")} description={t("notFoundText")} action={<ButtonLink href="/account/orders">{t("myOrders")}</ButtonLink>} />
       </Container>
     );
   }
-  const store = await getSetting(db, "store");
+  const [store, depositMethods, provider, latest] = await Promise.all([getSetting(db, "store"), enabledDepositMethods(db, locale), getDepositProvider(), latestOnlinePayment(db, order.id)]);
+  const online = { available: provider !== null, payment: latest ? { status: latest.status, payInfo: latest.payInfo, open: latest.open } : null };
   // Set only by the checkout redirect (?new=1) so the thank-you banner shows once.
-  const justPlaced = sp.new === "1" && order.status === "PENDING";
+  const justPlaced = sp.new === "1" && (order.status === "PENDING" || order.status === "AWAITING_DEPOSIT");
   return (
     <Container className="py-10">
-      <OrderView order={order} whatsapp={store.whatsapp} justPlaced={justPlaced} />
+      <OrderView order={order} whatsapp={store.whatsapp} justPlaced={justPlaced} token={token} depositMethods={depositMethods} online={online} />
     </Container>
   );
 }

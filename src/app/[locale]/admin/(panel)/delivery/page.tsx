@@ -8,7 +8,9 @@ import { pick } from "@/lib/localize";
 import { ActionForm } from "@/components/admin/action-form";
 import { AdminPageHeader } from "@/components/admin/ui";
 import { CheckboxField, TextField } from "@/components/ui/field";
-import { Badge } from "@/components/ui/misc";
+import { Alert, Badge } from "@/components/ui/misc";
+import { formatIQD } from "@/lib/money";
+import { FLAT_DELIVERY_FEE_IQD } from "@/lib/payment-rules";
 import { SubmitButton } from "@/components/ui/submit-button";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/admin/delivery">): Promise<Metadata> {
@@ -25,6 +27,7 @@ export default async function DeliveryAdminPage({ params }: PageProps<"/[locale]
   return (
     <div className="max-w-5xl space-y-4">
       <AdminPageHeader title={t("title")} description={t("text")} />
+      <Alert tone="info">{t("flatFee", { fee: formatIQD(FLAT_DELIVERY_FEE_IQD, lang) })}</Alert>
       <ul className="space-y-3">
         {zones.map((z) => (
           <li key={z.id} className="rounded-xl border border-border bg-surface p-4">
@@ -35,7 +38,6 @@ export default async function DeliveryAdminPage({ params }: PageProps<"/[locale]
             </div>
             <ActionForm action={updateZoneAction} className="flex flex-wrap items-end gap-3">
               <input type="hidden" name="id" value={z.id} />
-              <TextField id={`fee-${z.id}`} name="fee" type="number" min={0} step={250} label={t("fee")} defaultValue={String(z.fee)} required dir="ltr" wrapperClassName="w-36" />
               <TextField id={`min-${z.id}`} name="etaDaysMin" type="number" min={0} max={30} label={t("etaMin")} defaultValue={String(z.etaDaysMin)} dir="ltr" wrapperClassName="w-28" />
               <TextField id={`max-${z.id}`} name="etaDaysMax" type="number" min={0} max={30} label={t("etaMax")} defaultValue={String(z.etaDaysMax)} dir="ltr" wrapperClassName="w-28" />
               <CheckboxField id={`act-${z.id}`} name="isActive" label={tc("active")} defaultChecked={z.isActive} className="pb-2" />
@@ -78,7 +80,6 @@ function AreaForm({ zoneId, area, t, tc }: { zoneId: string; area?: { id: string
       {area ? <input type="hidden" name="areaId" value={area.id} /> : null}
       <TextField id={`aen-${k}`} name="nameEn" label={t("areaNameEn")} defaultValue={area?.nameEn} required maxLength={60} wrapperClassName="w-44" />
       <TextField id={`aar-${k}`} name="nameAr" label={t("areaNameAr")} defaultValue={area?.nameAr} required maxLength={60} dir="rtl" wrapperClassName="w-44" />
-      <TextField id={`afee-${k}`} name="fee" type="number" min={0} step={250} label={t("fee")} defaultValue={area ? String(area.fee) : ""} required dir="ltr" wrapperClassName="w-32" />
       <CheckboxField id={`aact-${k}`} name="isActive" label={tc("active")} defaultChecked={area ? area.isActive : true} className="pb-2" />
       <SubmitButton variant="secondary" size="sm" className="min-h-11">{area ? tc("save") : tc("add")}</SubmitButton>
     </ActionForm>

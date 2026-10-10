@@ -2,6 +2,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getDb } from "@/server/db/client";
 import { getSetting } from "@/server/services/settings";
+import { BUSINESS } from "@/lib/business";
 import { formatIraqiPhone, whatsappLink } from "@/lib/phone";
 import { pickText } from "@/lib/localize";
 import { Container } from "@/components/ui/misc";
@@ -14,17 +15,16 @@ export async function SiteFooter() {
     {
       title: t("shop"),
       links: [
-        { href: "/products", label: tn("products") },
+        { href: "/products", label: tn("models") },
         { href: "/categories", label: tn("categories") },
-        { href: "/models", label: tn("models") },
         { href: "/custom-printing", label: tn("customPrinting") },
       ],
     },
     {
       title: t("help"),
       links: [
-        { href: "/track", label: t("trackOrder") },
         { href: "/delivery", label: t("delivery") },
+        { href: "/payment", label: t("payment") },
         { href: "/returns", label: t("returns") },
         { href: "/faq", label: t("faq") },
         { href: "/contact", label: t("contact") },
@@ -39,6 +39,7 @@ export async function SiteFooter() {
       ],
     },
   ];
+  const address = pickText(locale, store.address);
   return (
     <footer className="mt-24 border-t border-border bg-surface">
       <Container className="grid gap-10 py-12 md:grid-cols-[1.4fr_repeat(3,1fr)]">
@@ -48,7 +49,15 @@ export async function SiteFooter() {
           </p>
           <p className="text-sm font-semibold text-primary-text">{tm("tagline")}</p>
           <p className="max-w-sm text-sm text-muted">{t("about")}</p>
-          <p className="text-sm text-muted">{t("payment")}</p>
+          <address className="space-y-1 text-sm not-italic">
+            <a href={`mailto:${BUSINESS.email}`} className="block w-fit underline-offset-2 hover:underline" dir="ltr">{BUSINESS.email}</a>
+            <span className="flex flex-wrap gap-x-3">
+              {BUSINESS.phones.map((p) => (
+                <a key={p.tel} href={`tel:${p.tel}`} className="ltr-nums underline-offset-2 hover:underline">{p.display}</a>
+              ))}
+            </span>
+            <span className="block text-muted">{t("hours")}: {pickText(locale, BUSINESS.hours)}</span>
+          </address>
           {store.whatsapp ? (
             <a href={whatsappLink(store.whatsapp)} rel="noopener noreferrer" target="_blank" className="inline-flex min-h-11 items-center gap-2 rounded-md border border-border px-3 text-sm font-medium hover:bg-surface-2">
               <WhatsappIcon size={18} />
@@ -75,7 +84,7 @@ export async function SiteFooter() {
       <div className="border-t border-border">
         <Container className="flex flex-col gap-2 py-5 text-xs text-muted sm:flex-row sm:justify-between">
           <p>{t("rights", { year: new Date().getFullYear() })}</p>
-          <p>{pickText(locale, store.address)}</p>
+          {address ? <p>{address}</p> : null}
         </Container>
       </div>
     </footer>

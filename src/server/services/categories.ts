@@ -1,7 +1,7 @@
-import { eq } from "drizzle-orm";
+import { asc, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { runBatch, type Database } from "@/server/db/client";
-import { categories, products } from "@/server/db/schema";
+import { categories, productImages, products } from "@/server/db/schema";
 import { SLUG_PATTERN } from "@/lib/slug";
 import { auditInsert, type AuditActor } from "./audit";
 import { getCategoryTree } from "./catalog";
@@ -60,4 +60,55 @@ export async function categoryProductCounts(db: Database, opts: { publishedOnly?
   const counts = new Map<string, number>();
   for (const r of rows) counts.set(r.categoryId, (counts.get(r.categoryId) ?? 0) + 1);
   return counts;
+}
+
+export type CategoryShowcase = {
+  id: string;
+  slug: string;
+  nameEn: string;
+  nameAr: string;
+  descriptionEn: string;
+  descriptionAr: string;
+  /** Real number of published products (including subcategories). */
+  productCount: number;
+  /** Primary image of the most recently published product in the category, if any. */
+  image: { key: string; altEn: string; altAr: string } | null;
+  children: { id: string; slug: string; nameEn: string; nameAr: string; productCount: number }[];
+};
+
+/** Data for the categories page: real counts and real product imagery only. */
+export async function getCategoryShowcase(db: Database): Promise<CategoryShowcase[]> {
+  const tree = await getCategoryTree(db);
+  const rows = await db
+    .select({ id: products.id, categoryId: products.categoryId, publishedAt: products.publishedAt, createdAt: products.createdAt })
+    .from(products)
+    .where(eq(products.status, "PUBLISHED"))
+    .orderBy(desc(products.publishedAt), desc(products.createdAt));
+  const images = rows.length
+    ? await db
+        .select({ productId: productImages.productId, r2Key: productImages.r2Key, altEn: productImages.altEn, altAr: productImages.altAr, sortOrder: productImages.sortOrder })
+        .from(productImages)
+        .where(inArray(productImages.productId, rows.slice(0, 90).map((r) => r.id)))
+        .orderBy(asc(productImages.sortOrder))
+    : [];
+  const primary = new Map<string, (typeof images)[number]>();
+  for (const img of images) if (!primary.has(img.productId)) primary.set(img.productId, img);
+
+  const countIn = (ids: Set<string>) => rows.filter((r) => ids.has(r.categoryId)).length;
+  return tree.roots.map((root) => {
+    const ids = new Set([root.id, ...root.children.map((c) => c.id)]);
+    const withImage = rows.find((r) => ids.has(r.categoryId) && primary.has(r.id));
+    const img = withImage ? primary.get(withImage.id)! : null;
+    return {
+      id: root.id,
+      slug: root.slug,
+      nameEn: root.nameEn,
+      nameAr: root.nameAr,
+      descriptionEn: root.descriptionEn,
+      descriptionAr: root.descriptionAr,
+      productCount: countIn(ids),
+      image: img ? { key: img.r2Key, altEn: img.altEn, altAr: img.altAr } : null,
+      children: root.children.map((c) => ({ id: c.id, slug: c.slug, nameEn: c.nameEn, nameAr: c.nameAr, productCount: countIn(new Set([c.id])) })),
+    };
+  });
 }

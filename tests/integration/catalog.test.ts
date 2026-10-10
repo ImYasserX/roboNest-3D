@@ -89,7 +89,7 @@ describe("catalog queries", () => {
 
   it("counts sales for popularity and per-customer order stats (correlated subqueries)", async () => {
     const cat = await makeCategory(p.db);
-    const hot = await makeProduct(p.db, { categoryId: cat.id });
+    const hot = await makeProduct(p.db, { categoryId: cat.id, basePrice: 10_000 }); // stays under the deposit threshold
     const cold = await makeProduct(p.db, { categoryId: cat.id });
     const user = await makeUser(p.db);
     const zone = await makeZone(p.db);

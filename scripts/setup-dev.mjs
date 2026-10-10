@@ -12,6 +12,6 @@ if (!existsSync(".dev.vars")) {
   );
   console.log("Created .dev.vars with a random APP_SECRET.");
 } else {
-  console.log(".dev.vars already exists — left unchanged.");
+  console.log(".dev.vars already exists; left unchanged.");
 }
 execSync("npx wrangler d1 migrations apply robonest-3d --local", { stdio: "inherit" });

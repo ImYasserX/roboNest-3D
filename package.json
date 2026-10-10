@@ -17,9 +17,15 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply robonest-3d --local",
     "db:seed": "tsx --conditions=react-server scripts/seed.ts",
-    "cf:build": "opennextjs-cloudflare build",
-    "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "admin:create": "tsx --conditions=react-server scripts/create-admin.ts"
+    "cf:build": "opennextjs-cloudflare build && node scripts/check-bundle-secrets.mjs",
+    "cf:preview": "npm run cf:build && opennextjs-cloudflare preview",
+    "admin:create": "tsx --conditions=react-server scripts/create-admin.ts",
+    "owner:bootstrap": "tsx --conditions=react-server scripts/bootstrap-owners.ts",
+    "telegram:chats": "node scripts/telegram-chat-ids.mjs",
+    "telegram:check": "node scripts/telegram-test.mjs --check",
+    "telegram:test": "node scripts/telegram-test.mjs",
+    "email:check": "node scripts/resend-check.mjs",
+    "email:test": "node scripts/resend-check.mjs --send"
   },
   "dependencies": {
     "@google/model-viewer": "^4.3.1",

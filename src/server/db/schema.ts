@@ -13,13 +13,19 @@ import {
   ACCOUNT_STATUSES,
   ADMIN_ROLES,
   AVAILABILITY,
+  CONTACT_DELIVERY_STATUSES,
   CONTACT_STATUSES,
   CUSTOM_REQUEST_STATUSES,
+  DEPOSIT_METHODS,
+  DEPOSIT_STATUSES,
   DIGITAL_FORMATS,
   DISCOUNT_TYPES,
   OPTION_TYPES,
+  NOTIFICATION_KINDS,
+  NOTIFICATION_STATUSES,
   ORDER_STATUSES,
   PAYMENT_METHODS,
+  PHONE_VERIFICATION_PURPOSES,
   PAYMENT_STATUSES,
   PRODUCT_STATUSES,
   PRODUCT_TYPES,
@@ -61,11 +67,54 @@ export const users = sqliteTable(
     passwordHash: text("password_hash").notNull(),
     status: text("status", { enum: ACCOUNT_STATUSES }).notNull().default("ACTIVE"),
     locale: text("locale").notNull().default("ar"),
+    /** Set once the customer proved control of `phone` with an SMS code. Sign-in requires it. */
+    phoneVerifiedAt: integer("phone_verified_at", { mode: "timestamp_ms" }),
     lastLoginAt: integer("last_login_at", { mode: "timestamp_ms" }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [uniqueIndex("users_phone_uq").on(t.phone)],
+);
+
+/**
+ * One SMS verification challenge. The browser holds the raw challenge token in
+ * an HttpOnly cookie; only its SHA-256 is stored. The code itself is generated
+ * and checked by the SMS provider and never stored or logged here.
+ */
+export const phoneVerifications = sqliteTable(
+  "phone_verifications",
+  {
+    /** SHA-256 of the challenge token. */
+    id: text("id").primaryKey(),
+    purpose: text("purpose", { enum: PHONE_VERIFICATION_PURPOSES }).notNull(),
+    phone: text("phone").notNull(),
+    /**
+     * LOGIN/RESET: the account. REGISTER: null; the account is only created
+     * once the code is accepted. RESET with null: number has no account, so no
+     * SMS was sent and no code can succeed.
+     */
+    userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
+    /** REGISTER only: applied when the code is accepted, so a second registration can never overwrite the first person's password. */
+    pendingName: text("pending_name"),
+    pendingPasswordHash: text("pending_password_hash"),
+    /** Channel of the most recent code: Twilio SMS (provider-checked) or WhatsApp (self-generated). */
+    channel: text("channel", { enum: ["SMS", "WHATSAPP"] }).notNull().default("SMS"),
+    /**
+     * WHATSAPP only: HMAC-SHA256(APP_SECRET, phone + code) of the code we
+     * generated. The code itself is never stored. Null for provider-checked codes.
+     */
+    codeHash: text("code_hash"),
+    attempts: integer("attempts").notNull().default(0),
+    sendCount: integer("send_count").notNull().default(1),
+    lastSentAt: integer("last_sent_at", { mode: "timestamp_ms" }),
+    /** RESET only: the code was accepted and a new password may be set. */
+    verifiedAt: integer("verified_at", { mode: "timestamp_ms" }),
+    consumedAt: integer("consumed_at", { mode: "timestamp_ms" }),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    ipHash: text("ip_hash"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("phone_verifications_phone_idx").on(t.phone, t.createdAt), index("phone_verifications_user_idx").on(t.userId)],
 );
 
 export const sessions = sqliteTable(
@@ -551,6 +600,19 @@ export const orders = sqliteTable(
     adminNotes: text("admin_notes"),
     locale: text("locale").notNull().default("ar"),
     customRequestId: text("custom_request_id"),
+    // Insurance deposit (orders above DEPOSIT_THRESHOLD_IQD). The amount is
+    // part of `total`; the rest is collected in cash on delivery. Triggers in
+    // migration 0001 keep 0 <= deposit_amount <= total and block CONFIRMED
+    // while a required deposit is unverified.
+    depositRequired: bool("deposit_required").notNull().default(false),
+    depositAmount: integer("deposit_amount").notNull().default(0),
+    depositStatus: text("deposit_status", { enum: DEPOSIT_STATUSES }).notNull().default("NOT_REQUIRED"),
+    depositMethod: text("deposit_method", { enum: DEPOSIT_METHODS }),
+    /** Transaction reference typed by the customer. Never proof of payment on its own. */
+    depositReference: text("deposit_reference"),
+    depositSubmittedAt: integer("deposit_submitted_at", { mode: "timestamp_ms" }),
+    depositVerifiedAt: integer("deposit_verified_at", { mode: "timestamp_ms" }),
+    depositVerifiedBy: text("deposit_verified_by").references(() => adminUsers.id, { onDelete: "set null" }),
     confirmedAt: integer("confirmed_at", { mode: "timestamp_ms" }),
     deliveredAt: integer("delivered_at", { mode: "timestamp_ms" }),
     cancelledAt: integer("cancelled_at", { mode: "timestamp_ms" }),
@@ -699,10 +761,14 @@ export const contactMessages = sqliteTable(
   {
     id: id(),
     name: text("name").notNull(),
-    phone: text("phone").notNull(),
+    /** Contact-form submissions carry an email; older rows carried a phone. */
+    email: text("email"),
+    phone: text("phone"),
     subject: text("subject").notNull(),
     message: text("message").notNull(),
     status: text("status", { enum: CONTACT_STATUSES }).notNull().default("NEW"),
+    /** Outcome of the Resend email to the business inbox. */
+    deliveryStatus: text("delivery_status", { enum: CONTACT_DELIVERY_STATUSES }),
     locale: text("locale").notNull().default("ar"),
     createdAt: createdAt(),
   },
@@ -737,6 +803,74 @@ export const auditLogs = sqliteTable(
     index("audit_logs_created_idx").on(t.createdAt),
     index("audit_logs_actor_idx").on(t.actorAdminId, t.createdAt),
     index("audit_logs_target_idx").on(t.targetType, t.targetId),
+  ],
+);
+
+/**
+ * Online deposit payment attempts with a real provider (FIB first). A
+ * provider payment is only trusted after a server-to-server status check;
+ * callbacks are treated as "please re-check" signals. `providerPaymentId` is
+ * unique, so repeated callbacks and retries update one row.
+ */
+export const depositPayments = sqliteTable(
+  "deposit_payments",
+  {
+    id: id(),
+    orderId: text("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    provider: text("provider", { enum: ["FIB"] }).notNull(),
+    providerPaymentId: text("provider_payment_id").notNull(),
+    /** Amount requested from the provider; must equal orders.deposit_amount. */
+    amount: integer("amount").notNull(),
+    status: text("status", { enum: ["CREATED", "PAID", "DECLINED", "CANCELLED", "AMOUNT_MISMATCH"] }).notNull().default("CREATED"),
+    /** Provider data needed to pay (QR / readable code / app links); no secrets. */
+    payInfo: text("pay_info", { mode: "json" }).$type<Record<string, string | null>>().notNull().default({}),
+    validUntil: integer("valid_until", { mode: "timestamp_ms" }),
+    paidAt: integer("paid_at", { mode: "timestamp_ms" }),
+    declineReason: text("decline_reason"),
+    lastCheckedAt: integer("last_checked_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("deposit_payments_provider_uq").on(t.provider, t.providerPaymentId),
+    index("deposit_payments_order_idx").on(t.orderId, t.status),
+    check("deposit_payments_amount_ck", sql`${t.amount} > 0`),
+  ],
+);
+
+/**
+ * Outbox for internal staff notifications (Telegram first). A row is written in
+ * the same batch as the order, so a committed order always has its event, and
+ * delivery happens afterwards. `dedupeKey` makes creation idempotent; retries
+ * only send to recipients not yet in `deliveredTo`.
+ */
+export const notificationEvents = sqliteTable(
+  "notification_events",
+  {
+    id: id(),
+    kind: text("kind", { enum: NOTIFICATION_KINDS }).notNull(),
+    dedupeKey: text("dedupe_key").notNull(),
+    channel: text("channel", { enum: ["TELEGRAM"] }).notNull().default("TELEGRAM"),
+    orderId: text("order_id").references(() => orders.id, { onDelete: "cascade" }),
+    /** Non-sensitive fields used to render the message (no names, phones or addresses). */
+    payload: text("payload", { mode: "json" }).$type<Record<string, string | number | boolean | null>>().notNull(),
+    status: text("status", { enum: NOTIFICATION_STATUSES }).notNull().default("PENDING"),
+    attempts: integer("attempts").notNull().default(0),
+    /** Recipient chat ids that already received this event. */
+    deliveredTo: text("delivered_to", { mode: "json" }).$type<string[]>().notNull().default([]),
+    lastError: text("last_error"),
+    nextAttemptAt: integer("next_attempt_at", { mode: "timestamp_ms" }),
+    lockedUntil: integer("locked_until", { mode: "timestamp_ms" }),
+    sentAt: integer("sent_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("notification_events_dedupe_uq").on(t.dedupeKey),
+    index("notification_events_status_idx").on(t.status, t.nextAttemptAt),
+    index("notification_events_order_idx").on(t.orderId),
   ],
 );
 

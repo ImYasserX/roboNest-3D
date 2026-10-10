@@ -6,13 +6,28 @@ Tests target the failures that would actually hurt this business: wrong prices, 
 
 | Layer | Command | Runs against | Count |
 |---|---|---|---|
-| i18n parity | `npm run check:i18n` (part of `npm test`) | `messages/*.json` | 1,064 keys × 2 locales |
-| Unit | `npm run test:unit` | Pure modules | 40 tests / 5 files |
-| Integration | `npm run test:integration` | Real **D1 + R2 engine** (workerd via `getPlatformProxy`, in memory, all migrations applied) | 39 tests / 5 files |
-| E2E, accessibility, responsive | `npm run cf:build && npm run test:e2e` | The **production Worker bundle** in workerd (`wrangler dev`), freshly seeded | 45 tests / 3 files |
-| Static | `npm run typecheck`, `npm run lint` | Whole repo | — |
+| i18n parity | `npm run check:i18n` (part of `npm test`) | `messages/*.json` | about 1,200 keys × 2 locales |
+| Unit | `npm run test:unit` | Pure modules | 6 files |
+| Integration | `npm run test:integration` | Real **D1 + R2 engine** (workerd via `getPlatformProxy`, in memory, all migrations applied) | 8 files |
+| E2E, accessibility, responsive | `npm run cf:build && npm run test:e2e` (with secrets in `.env.local`: `CF_BUILD_ALLOW_ENV_SECRETS=1 npm run cf:build`; the built Worker ignores them) | The **production Worker bundle** in workerd (`wrangler dev`), freshly seeded | 4 files |
+| Static | `npm run typecheck`, `npm run lint` | Whole repo | n/a |
 
-`npm test` = i18n parity + unit + integration (79 tests, about 40 s).
+`npm test` = i18n parity + unit + integration (111 tests, about 70 s). External services (Twilio, Telegram, Resend) are always replaced by in-memory fakes (`tests/support/fakes.ts`); tests never send real SMS, messages, emails or payments.
+
+### Added on 2026-10-10 (second round)
+
+- `unit/payment-rules.test.ts`: the 30% deposit with round-down at 50,001 / 50,003 / 50,004 / 60,000 / the price cap; discounts before the threshold; blocked when no payment path exists.
+- `integration/deposits.test.ts`: manual reports refused without owner approval; online availability alone makes orders payable; a discount down to exactly 50,000 removes the deposit while the total with delivery is 55,000; the deposit-rule triggers reject non-conforming inserts and later changes; the verifying admin must enter the exact received amount.
+- `integration/online-deposits.test.ts` (mocked FIB): request shapes per FIB's docs; unknown statuses and mismatched ids rejected; secret not leaked; duplicate submissions reuse one payment; unpaid and declined payments change nothing; three concurrent callbacks verify once (one history row, one alert); wrong amount or currency never verifies; payment after cancellation and double payment are flagged; provider outages.
+- `integration/whatsapp-otp.test.ts` (mocked Meta): template payload with the code in body and button per locale; only a phone-bound HMAC is stored; switching to SMS invalidates the WhatsApp code; missing channels fail closed; token and code never in error details. Plus Resend sender/recipient validation and "accepted without id" treated as failure.
+
+### Added on 2026-10-10
+
+- `unit/payment-rules.test.ts`: flat 5,000 IQD delivery; the strict `> 50,000` deposit threshold (49,999 / 50,000 / 50,001) on subtotal minus discount; high-value orders cannot bypass an unconfigured deposit; the deposit state machine cannot be skipped; Owner permissions and who may manage owners; theme cookie parsing.
+- `integration/phone-verification.test.ts`: phone normalization; inactive without a provider; account created only after the provider approves; no code stored; attempt cap; no enumeration or takeover of an existing verified number; a second pending registration cannot overwrite the first; resend cooldown and send cap; unverified accounts get no session; SMS recovery (unknown numbers get no SMS, reset only after the code, sessions revoked, single use).
+- `integration/deposits.test.ts`: blocked while unconfigured; exactly 50,000 needs no deposit; client-supplied totals/status ignored; submission is not payment; generic status change and raw SQL updates cannot confirm an unverified deposit (trigger); reject → resubmit → verify → confirm with full history; Telegram outbox: one event per order even on duplicate submits, no personal data, partial failure keeps the order and retries only the failed chat, no double send, not-configured and permanent-error handling, bot token redacted.
+- `integration/owners-contact.test.ts`: owner bootstrap is idempotent and limited to the two named owners; owners cannot be created from the UI, demoted, disabled, deleted or promoted into (app and triggers); only an owner can reset an owner's credentials; contact form validation, Resend request shape, failure never reported as success, fill-time token.
+- `e2e/navigation.spec.ts`: centred search and a single "3D Models" entry at 1440/1280/1024; no tracking link or page; header search; mobile menu opens from the hamburger's side in LTR and RTL at 390/360/600 and closes with Escape; theme persistence and system preference; favicon/manifest; footer contact details and policy links; contact form failure path; categories link to listings.
 
 ### Unit (`tests/unit`)
 
@@ -33,13 +48,13 @@ Each file boots its own in‑memory Miniflare D1/R2 with the real migrations, so
   - merging a visitor cart into the account cart at sign‑in;
   - a full COD order with snapshots, history, and discount usage, where client‑sent `total`/`price`/`deliveryFee` fields are ignored;
   - snapshots surviving product edits;
-  - delivery area override and inactive or unknown zones;
+  - the flat delivery fee (legacy zone/area fees ignored) and inactive or unknown zones;
   - **idempotency under concurrent double submit**;
   - **overselling the last unit under concurrency**;
   - discount usage limits;
   - digital products requiring an account, and digital‑only orders without delivery;
   - invalid phone and empty cart;
-  - **order access control** (owner, token, phone lookup, and a stranger);
+  - **order access control** (owner, token, and a stranger);
   - customer views excluding internal fields;
   - a 20‑line order (D1's 100‑parameter limit).
 - `lifecycle`:
@@ -51,7 +66,7 @@ Each file boots its own in‑memory Miniflare D1/R2 with the real migrations, so
   - uploads owned by someone else and unknown materials are rejected;
   - declining a quote.
 - `auth`:
-  - registration with normalized phones and duplicates rejected;
+  - duplicate phones rejected by the unique index (the SMS registration flow is in `phone-verification`);
   - an identical error for unknown phone and wrong password;
   - sessions revoked on password change and reset;
   - single‑use and expiring reset tokens;

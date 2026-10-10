@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 // E2E runs against a freshly seeded local database. By default it starts the
-// production Worker bundle in workerd (`wrangler dev`) — the same runtime as
+// production Worker bundle in workerd (`wrangler dev`), the same runtime as
 // Cloudflare. Set E2E_BASE_URL to test an already running server instead.
 //   npm run cf:build && npm run test:e2e
 const PORT = 8787;

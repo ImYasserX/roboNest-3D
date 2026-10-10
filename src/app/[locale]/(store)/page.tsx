@@ -3,10 +3,11 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getDb } from "@/server/db/client";
 import { getSiteUrl } from "@/server/env";
 import { getHomeCollections } from "@/server/services/catalog";
-import { listDeliveryZones } from "@/server/services/delivery";
 import { getSettings } from "@/server/services/settings";
+import { BUSINESS } from "@/lib/business";
 import { pickText } from "@/lib/localize";
 import { formatIQD } from "@/lib/money";
+import { FLAT_DELIVERY_FEE_IQD } from "@/lib/payment-rules";
 import { ProductGrid } from "@/components/catalog/product-card";
 import { HeroVisual } from "@/components/layout/hero-visual";
 import { Section } from "@/components/layout/section";
@@ -30,15 +31,13 @@ export async function generateMetadata({ params }: PageProps<"/[locale]">): Prom
 export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const [t, tm, tc] = await Promise.all([getTranslations("home"), getTranslations("meta"), getTranslations("catalog")]);
+  const [t, tm] = await Promise.all([getTranslations("home"), getTranslations("meta")]);
   const db = await getDb();
-  const [collections, zones, settings, siteUrl] = await Promise.all([
+  const [collections, settings, siteUrl] = await Promise.all([
     getHomeCollections(db),
-    listDeliveryZones(db, { activeOnly: true }),
     getSettings(db, ["homepage", "store"]),
     getSiteUrl(),
   ]);
-  const minFee = zones.length ? Math.min(...zones.map((z) => z.fee)) : null;
   const hasCatalog = collections.latest.length > 0;
 
   const how = [
@@ -65,8 +64,8 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
             url: siteUrl,
             logo: `${siteUrl}/brand/robonest-mark-256.png`,
             parentOrganization: { "@type": "Organization", name: "RoboNest" },
-            areaServed: { "@type": "Country", name: "Iraq" },
-            ...(settings.store.phone ? { telephone: settings.store.phone } : {}),
+            email: BUSINESS.email,
+            telephone: BUSINESS.phones.map((p) => p.tel),
           },
           {
             "@context": "https://schema.org",
@@ -216,12 +215,9 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
               {t("deliveryTitle")}
             </h2>
             <p className="max-w-2xl text-muted">{t("deliveryText")}</p>
-            {minFee !== null ? (
-              <p className="text-sm">
-                <span className="text-muted">{tc("from")} </span>
-                <span className="ltr-nums font-semibold">{formatIQD(minFee, locale)}</span>
-              </p>
-            ) : null}
+            <p className="text-sm">
+              <span className="ltr-nums font-semibold">{formatIQD(FLAT_DELIVERY_FEE_IQD, locale)}</span>
+            </p>
           </div>
           <ButtonLink href="/delivery" variant="secondary" size="lg">
             {t("deliveryCta")}

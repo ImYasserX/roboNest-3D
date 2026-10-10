@@ -40,7 +40,7 @@ export function ProductForm({ id, values, categories }: { id?: string; values: V
         {field("nameAr", { required: true, maxLength: 120, dir: "rtl" })}
         {field("slug", { required: true, maxLength: 80, dir: "ltr", hint: t("fields.slugHint") })}
         <SelectField id="categoryId" name="categoryId" label={t("fields.categoryId")} required defaultValue={v("categoryId")} error={err("categoryId")}>
-          <option value="">—</option>
+          <option value="">{tc("notSet")}</option>
           {groups.map((g) => (
             <optgroup key={g} label={g}>
               {categories.filter((c) => c.group === g).map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}

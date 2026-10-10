@@ -2,6 +2,13 @@ import type { CustomRequestStatus, OrderStatus } from "./domain";
 
 // Order lifecycle for a made-to-order business with third-party delivery.
 //
+//   High-value orders (see lib/payment-rules.ts) start with a deposit stage:
+//   AWAITING_DEPOSIT → DEPOSIT_SUBMITTED (customer sends a reference)
+//     → DEPOSIT_VERIFIED (staff checked the transfer) → CONFIRMED
+//   A rejected submission returns to AWAITING_DEPOSIT. The deposit steps are
+//   NOT reachable through the generic admin status change: they have their
+//   own server functions (services/deposits.ts), so nobody can skip a check.
+//
 //   PENDING → CONFIRMED → IN_PRODUCTION → QUALITY_CHECK → READY_FOR_DELIVERY
 //     → OUT_FOR_DELIVERY → DELIVERED → (RETURN_REQUESTED → RETURNED)
 //
@@ -10,6 +17,9 @@ import type { CustomRequestStatus, OrderStatus } from "./domain";
 // FAILED_DELIVERY can be retried, returned to the workshop, or cancelled.
 
 const TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
+  AWAITING_DEPOSIT: ["CANCELLED"],
+  DEPOSIT_SUBMITTED: ["CANCELLED"],
+  DEPOSIT_VERIFIED: ["CONFIRMED", "CANCELLED"],
   PENDING: ["CONFIRMED", "CANCELLED"],
   CONFIRMED: ["IN_PRODUCTION", "READY_FOR_DELIVERY", "DELIVERED", "CANCELLED"],
   IN_PRODUCTION: ["QUALITY_CHECK", "CANCELLED"],
@@ -37,7 +47,10 @@ export function canTransitionOrder(from: OrderStatus, to: OrderStatus, ctx: { ha
   return allowedOrderTransitions(from, ctx).includes(to);
 }
 
-/** Customer-facing progress steps (for the tracker UI). */
+/** Statuses an order passes through while its deposit is open. */
+export const DEPOSIT_STAGE_STATUSES: readonly OrderStatus[] = ["AWAITING_DEPOSIT", "DEPOSIT_SUBMITTED", "DEPOSIT_VERIFIED"];
+
+/** Customer-facing progress steps shown on the order page. */
 export const ORDER_PROGRESS: readonly OrderStatus[] = [
   "PENDING",
   "CONFIRMED",
@@ -54,6 +67,9 @@ export const TERMINAL_ORDER_STATUSES: readonly OrderStatus[] = ["DELIVERED", "RE
 export const REVENUE_STATUSES: readonly OrderStatus[] = ["DELIVERED", "RETURN_REQUESTED"];
 /** Statuses that count as open (booked, not yet realised). */
 export const OPEN_STATUSES: readonly OrderStatus[] = [
+  "AWAITING_DEPOSIT",
+  "DEPOSIT_SUBMITTED",
+  "DEPOSIT_VERIFIED",
   "PENDING",
   "CONFIRMED",
   "IN_PRODUCTION",

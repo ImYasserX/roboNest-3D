@@ -8,7 +8,8 @@ import { canAdminTransitionCustomRequest } from "@/lib/order-status";
 import { normalizeIraqiPhone } from "@/lib/phone";
 import { escapeLike } from "@/lib/search-normalize";
 import { auditInsert, type AuditActor } from "./audit";
-import { generateOrderNumber, orderAccessToken, quoteDelivery } from "./orders";
+import { orderPlacedEvent } from "./notifications";
+import { generateOrderNumber, initialPaymentState, orderAccessToken, quoteDelivery } from "./orders";
 import { getSetting } from "./settings";
 
 const noControl = (s: string) => !/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(s);
@@ -170,7 +171,7 @@ export async function acceptQuote(
   db: Database,
   requestId: string,
   raw: unknown,
-  ctx: { appSecret: string },
+  ctx: { appSecret: string; onlineDepositAvailable?: boolean },
 ) {
   const parsed = acceptSchema.safeParse(raw);
   if (!parsed.success) return { ok: false as const, error: "invalid_input" as const };
@@ -178,17 +179,19 @@ export async function acceptQuote(
   if (!request) return { ok: false as const, error: "not_found" as const };
   if (request.status === "ACCEPTED" && request.orderId) {
     const [o] = await db.select({ orderNumber: orders.orderNumber }).from(orders).where(eq(orders.id, request.orderId)).limit(1);
-    return { ok: true as const, orderNumber: o.orderNumber, accessToken: await orderAccessToken(ctx.appSecret, request.orderId) };
+    return { ok: true as const, orderId: request.orderId, orderNumber: o.orderNumber, accessToken: await orderAccessToken(ctx.appSecret, request.orderId) };
   }
   if (request.status !== "QUOTED" || !request.quotedPrice) return { ok: false as const, error: "not_quoted" as const };
 
   const quote = await quoteDelivery(db, parsed.data.zoneId, parsed.data.areaId);
   if (!quote.ok) return { ok: false as const, error: quote.error };
 
+  const subtotal = request.quotedPrice;
+  const payment = await initialPaymentState(db, { subtotal, discountTotal: 0, total: subtotal + quote.fee }, ctx.onlineDepositAvailable ?? false);
+  if (!payment.ok) return { ok: false as const, error: payment.error };
   const orderId = crypto.randomUUID();
   const orderNumber = generateOrderNumber("RN");
   const accessToken = await orderAccessToken(ctx.appSecret, orderId);
-  const subtotal = request.quotedPrice;
   const idempotencyKey = await sha256Hex(`custom-request|${request.id}`);
   try {
     // One atomic batch: the order is inserted first (the request row references
@@ -204,9 +207,10 @@ export async function acceptQuote(
         accessTokenHash: await sha256Hex(accessToken),
         customerName: request.customerName,
         customerPhone: request.customerPhone,
-        status: "PENDING",
+        status: payment.status,
         paymentMethod: "COD",
         paymentStatus: "PENDING",
+        ...payment.columns,
         subtotal,
         discountTotal: 0,
         deliveryFee: quote.fee,
@@ -244,7 +248,18 @@ export async function acceptQuote(
         isPhysical: true,
         isDigital: false,
       }),
-      db.insert(orderStatusHistory).values({ orderId, toStatus: "PENDING", actorType: "CUSTOMER", actorId: request.userId, actorLabel: request.customerName }),
+      db.insert(orderStatusHistory).values({ orderId, toStatus: payment.status, actorType: "CUSTOMER", actorId: request.userId, actorLabel: request.customerName }),
+      orderPlacedEvent(db, {
+        id: orderId,
+        orderNumber,
+        total: subtotal + quote.fee,
+        deliveryFee: quote.fee,
+        depositRequired: payment.columns.depositRequired,
+        depositAmount: payment.columns.depositAmount,
+        hasPhysical: true,
+        hasDigital: false,
+        isCustomPrint: true,
+      }),
       db
         .update(customPrintRequests)
         .set({ status: "ACCEPTED", orderId })
@@ -252,7 +267,7 @@ export async function acceptQuote(
     ]);
   } catch (error) {
     const [existing] = await db.select({ id: orders.id, orderNumber: orders.orderNumber }).from(orders).where(eq(orders.idempotencyKey, idempotencyKey)).limit(1);
-    if (existing) return { ok: true as const, orderNumber: existing.orderNumber, accessToken: await orderAccessToken(ctx.appSecret, existing.id) };
+    if (existing) return { ok: true as const, orderId: existing.id, orderNumber: existing.orderNumber, accessToken: await orderAccessToken(ctx.appSecret, existing.id) };
     console.error("acceptQuote failed", { requestId, reason: String(error).slice(0, 200) });
     return { ok: false as const, error: "failed" as const };
   }
@@ -262,7 +277,7 @@ export async function acceptQuote(
     await db.delete(orders).where(eq(orders.id, orderId));
     return { ok: false as const, error: "not_quoted" as const };
   }
-  return { ok: true as const, orderNumber, accessToken };
+  return { ok: true as const, orderId, orderNumber, accessToken };
 }
 
 export async function declineQuote(db: Database, requestId: string) {

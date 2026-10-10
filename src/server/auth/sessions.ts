@@ -1,6 +1,7 @@
 import { and, eq, gt, lt } from "drizzle-orm";
 import type { Database } from "@/server/db/client";
 import { adminSessions, adminUsers, sessions, users } from "@/server/db/schema";
+import type { AdminRole } from "@/lib/domain";
 import { randomToken, sha256Hex } from "./crypto";
 
 // Opaque, random session tokens. Only SHA-256(token) is stored, so a database
@@ -38,13 +39,14 @@ export async function validateCustomerSession(
 ): Promise<CustomerSessionUser | null> {
   if (!token || token.length > 128) return null;
   const rows = await db
-    .select({ id: users.id, name: users.name, phone: users.phone, locale: users.locale, status: users.status })
+    .select({ id: users.id, name: users.name, phone: users.phone, locale: users.locale, status: users.status, phoneVerifiedAt: users.phoneVerifiedAt })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
     .where(and(eq(sessions.id, await sha256Hex(token)), gt(sessions.expiresAt, new Date(now))))
     .limit(1);
   const row = rows[0];
-  if (!row || row.status !== "ACTIVE") return null;
+  // Sessions are only issued after verification; this also covers legacy rows.
+  if (!row || row.status !== "ACTIVE" || !row.phoneVerifiedAt) return null;
   return { id: row.id, name: row.name, phone: row.phone, locale: row.locale };
 }
 
@@ -92,7 +94,7 @@ export type AdminSession = {
     id: string;
     username: string;
     displayName: string;
-    role: "SUPER_ADMIN" | "OPERATIONS";
+    role: AdminRole;
     totpEnabled: boolean;
   };
 };

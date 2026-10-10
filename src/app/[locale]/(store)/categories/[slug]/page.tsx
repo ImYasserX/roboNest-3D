@@ -24,7 +24,7 @@ export async function generateMetadata({ params, searchParams }: PageProps<"/[lo
   if (!found) return {};
   const t = await getTranslations({ locale, namespace: "catalog" });
   const name = pick(locale, found.node.nameEn, found.node.nameAr);
-  const description = pick(locale, found.node.descriptionEn, found.node.descriptionAr) || `${name} — ${t("description")}`;
+  const description = pick(locale, found.node.descriptionEn, found.node.descriptionAr) || `${name}: ${t("description")}`;
   return listingMetadata(locale, `/categories/${slug}`, name, description, await searchParams);
 }
 

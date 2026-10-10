@@ -29,7 +29,11 @@
   ],
   "images": { "binding": "IMAGES" },
   "vars": {
-    "SITE_URL": "http://localhost:3000"
+    "SITE_URL": "http://localhost:3000",
+    // Contact-form recipient (owner decision 2026-10). Not a secret. The
+    // sender (CONTACT_FROM_EMAIL) and RESEND_API_KEY are secrets/vars set
+    // separately; the sender must be on a domain verified in Resend.
+    "CONTACT_FORM_EMAIL": "contact@robonest.tech"
   },
   "observability": { "enabled": true }
 }

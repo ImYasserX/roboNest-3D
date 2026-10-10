@@ -1,7 +1,9 @@
 import Image from "next/image";
 import { getLocale, getTranslations } from "next-intl/server";
 import type { CustomerOrderView } from "@/server/services/orders";
-import { ORDER_PROGRESS } from "@/lib/order-status";
+import { DEPOSIT_STAGE_STATUSES, ORDER_PROGRESS } from "@/lib/order-status";
+import type { OrderStatus } from "@/lib/domain";
+import { DepositForm, OnlineDepositPanel, type DepositMethodInfo, type OnlinePaymentInfo } from "./deposit-panel";
 import { formatIQD } from "@/lib/money";
 import { formatDate, mediaUrl, pick, pickText } from "@/lib/localize";
 import { formatIraqiPhone, whatsappLink } from "@/lib/phone";
@@ -13,10 +15,13 @@ import { cn } from "@/components/ui/cn";
 
 const OFF_TRACK = ["CANCELLED", "FAILED_DELIVERY", "RETURN_REQUESTED", "RETURNED"];
 
-export async function OrderView({ order, whatsapp, justPlaced }: { order: CustomerOrderView; whatsapp: string; justPlaced?: boolean }) {
+export async function OrderView({ order, whatsapp, justPlaced, token, depositMethods, online }: { order: CustomerOrderView; whatsapp: string; justPlaced?: boolean; token: string | null; depositMethods: DepositMethodInfo[]; online: { available: boolean; payment: OnlinePaymentInfo } }) {
   const [t, ts, tco, tcart, locale] = await Promise.all([getTranslations("order"), getTranslations("status"), getTranslations("checkout"), getTranslations("cart"), getLocale()]);
-  const steps = order.hasPhysical ? ORDER_PROGRESS : (["PENDING", "CONFIRMED", "DELIVERED"] as const);
-  const currentIndex = steps.indexOf(order.status as (typeof steps)[number]);
+  const baseSteps: readonly OrderStatus[] = order.hasPhysical ? ORDER_PROGRESS : ["PENDING", "CONFIRMED", "DELIVERED"];
+  // Deposit orders replace the PENDING step with the three deposit steps.
+  const steps: readonly OrderStatus[] = order.depositRequired ? [...DEPOSIT_STAGE_STATUSES, ...baseSteps.filter((s) => s !== "PENDING")] : baseSteps;
+  const currentIndex = steps.indexOf(order.status);
+  const balance = order.total - (order.depositStatus === "VERIFIED" ? order.depositAmount : 0);
   const offTrack = OFF_TRACK.includes(order.status);
 
   return (
@@ -44,6 +49,31 @@ export async function OrderView({ order, whatsapp, justPlaced }: { order: Custom
         </div>
       </div>
 
+      {order.depositRequired ? (
+        <section aria-labelledby="deposit-title" className="space-y-3 rounded-xl border border-warning/40 bg-surface p-5">
+          <h2 id="deposit-title" className="font-display text-xl font-semibold">
+            {t("deposit.title")}
+          </h2>
+          <p className="text-sm text-muted">{t("deposit.why", { amount: formatIQD(order.depositAmount, locale) })}</p>
+          {order.status === "AWAITING_DEPOSIT" ? (
+            online.available || depositMethods.length > 0 ? (
+              <div className="space-y-4">
+                {online.available ? <OnlineDepositPanel orderNumber={order.orderNumber} token={token} amount={order.depositAmount} payment={online.payment} /> : null}
+                {depositMethods.length > 0 ? <DepositForm orderNumber={order.orderNumber} token={token} amount={order.depositAmount} methods={depositMethods} /> : null}
+              </div>
+            ) : (
+              <Alert tone="warning">{t("deposit.noMethods")}</Alert>
+            )
+          ) : order.depositStatus === "SUBMITTED" ? (
+            <Alert tone="info">
+              {t("deposit.underReview", { method: order.depositMethod ? ts(`depositMethod.${order.depositMethod}`) : "", reference: order.depositReference ?? "" })}
+            </Alert>
+          ) : order.depositStatus === "VERIFIED" ? (
+            <Alert tone="success">{t("deposit.verified", { amount: formatIQD(order.depositAmount, locale) })}</Alert>
+          ) : null}
+        </section>
+      ) : null}
+
       <section aria-labelledby="progress-title" className="space-y-4">
         <h2 id="progress-title" className="font-display text-xl font-semibold">
           {t("progress")}
@@ -69,7 +99,7 @@ export async function OrderView({ order, whatsapp, justPlaced }: { order: Custom
                   </span>
                   <span>
                     {ts(`order.${step}`)}
-                    <span className="sr-only"> — {t(state === "done" ? "stepDone" : state === "current" ? "stepCurrent" : "stepUpcoming")}</span>
+                    <span className="sr-only">, {t(state === "done" ? "stepDone" : state === "current" ? "stepCurrent" : "stepUpcoming")}</span>
                   </span>
                 </li>
               );
@@ -163,6 +193,18 @@ export async function OrderView({ order, whatsapp, justPlaced }: { order: Custom
                 <dt>{order.hasPhysical ? tco("total") : tco("totalDigital")}</dt>
                 <dd className="ltr-nums">{formatIQD(order.total, locale)}</dd>
               </div>
+              {order.depositRequired ? (
+                <>
+                  <div className="flex justify-between">
+                    <dt className="text-muted">{t("deposit.depositLine")}</dt>
+                    <dd className="ltr-nums">{formatIQD(order.depositAmount, locale)}</dd>
+                  </div>
+                  <div className="flex justify-between font-semibold">
+                    <dt>{t("deposit.balanceLine")}</dt>
+                    <dd className="ltr-nums">{formatIQD(order.depositStatus === "VERIFIED" ? balance : order.total - order.depositAmount, locale)}</dd>
+                  </div>
+                </>
+              ) : null}
             </dl>
             <p className="text-sm text-muted">
               {t("payment")}: {ts(`paymentMethod.${order.paymentMethod}`)} · {ts(`payment.${order.paymentStatus}`)}

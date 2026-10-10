@@ -84,7 +84,7 @@ export default async function CustomRequestPage({ params, searchParams }: PagePr
           <QuoteResponse
             access={{ requestNumber: request.requestNumber, token: tokenStr }}
             price={request.quotedPrice}
-            zones={zones.map((z) => ({ id: z.id, nameEn: z.nameEn, nameAr: z.nameAr, fee: z.fee, etaDaysMin: z.etaDaysMin, etaDaysMax: z.etaDaysMax, areas: z.areas.map((a) => ({ id: a.id, nameEn: a.nameEn, nameAr: a.nameAr, fee: a.fee })) }))}
+            zones={zones.map((z) => ({ id: z.id, nameEn: z.nameEn, nameAr: z.nameAr, areas: z.areas.map((a) => ({ id: a.id, nameEn: a.nameEn, nameAr: a.nameAr })) }))}
           />
         </Card>
       ) : null}
@@ -96,7 +96,7 @@ export default async function CustomRequestPage({ params, searchParams }: PagePr
           <div><dt className="text-muted">{t("color")}</dt><dd className="font-medium">{request.color}</dd></div>
           <div><dt className="text-muted">{t("scale")}</dt><dd className="ltr-nums font-medium">{request.scalePercent}%</dd></div>
           <div><dt className="text-muted">{t("quantity")}</dt><dd className="ltr-nums font-medium">{request.quantity}</dd></div>
-          <div className="sm:col-span-2"><dt className="text-muted">{t("notes")}</dt><dd className="whitespace-pre-line">{request.notes || "—"}</dd></div>
+          <div className="sm:col-span-2"><dt className="text-muted">{t("notes")}</dt><dd className="whitespace-pre-line">{request.notes || t("noNotes")}</dd></div>
           <div className="sm:col-span-2"><dt className="text-muted">{formatDate(request.createdAt, locale, true)}</dt></div>
         </dl>
         <div>

@@ -4,6 +4,7 @@ import {
   deliveryAreas,
   deliveryZones,
   discounts,
+  orders,
   productOptionValues,
   productOptions,
   products,
@@ -103,4 +104,24 @@ export function checkoutInput(zoneId: string, overrides: Record<string, unknown>
     locale: "en",
     ...overrides,
   };
+}
+
+/** Inserts an order row directly (bypassing services) to probe database triggers. */
+export function orderWithBadDeposit(db: Database, v: { subtotal: number; depositRequired: boolean; depositAmount: number }) {
+  return db.insert(orders).values({
+    orderNumber: `RN-260101-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+    idempotencyKey: crypto.randomUUID(),
+    accessTokenHash: crypto.randomUUID(),
+    customerName: "Trigger Test",
+    customerPhone: "+9647700000000",
+    subtotal: v.subtotal,
+    deliveryFee: 5_000,
+    total: v.subtotal + 5_000,
+    hasPhysical: true,
+    hasDigital: false,
+    depositRequired: v.depositRequired,
+    depositAmount: v.depositAmount,
+    status: v.depositRequired ? "AWAITING_DEPOSIT" : "PENDING",
+    depositStatus: v.depositRequired ? "AWAITING" : "NOT_REQUIRED",
+  });
 }

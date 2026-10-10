@@ -33,7 +33,7 @@ export default async function CustomerPage({ params }: PageProps<"/[locale]/admi
   const canEdit = hasPermission(admin.role, "customers.edit");
   return (
     <div className="max-w-4xl space-y-6">
-      <AdminPageHeader title={t("detailTitle", { name: user.name })} description={`${t("joined")}: ${formatDate(user.createdAt, lang)} · ${t("lastLogin")}: ${user.lastLoginAt ? formatDate(user.lastLoginAt, lang, true) : "—"}`}>
+      <AdminPageHeader title={t("detailTitle", { name: user.name })} description={`${t("joined")}: ${formatDate(user.createdAt, lang)} · ${t("lastLogin")}: ${user.lastLoginAt ? formatDate(user.lastLoginAt, lang, true) : tc("never")}`}>
         <a href={whatsappLink(user.phone)} target="_blank" rel="noopener noreferrer" className="ltr-nums text-sm underline">{formatIraqiPhone(user.phone)}</a>
       </AdminPageHeader>
       {canEdit ? (

@@ -14,7 +14,14 @@ import { deleteCustomer, updateCustomer } from "@/server/services/customers";
 import { deleteArea, saveArea, updateZone } from "@/server/services/delivery";
 import { saveDiscount } from "@/server/services/discounts";
 import { setContactStatus } from "@/server/services/engagement";
-import { saveSetting } from "@/server/services/settings";
+import { getSetting, saveSetting } from "@/server/services/settings";
+import { writeAudit } from "@/server/services/audit";
+import { createTestNotification, dispatchNotification, retryNotification } from "@/server/services/notifications";
+import { consumeRateLimit } from "@/server/services/rate-limit";
+import { getNotifierConfig } from "@/server/notify";
+import { contactEmailStatus } from "@/server/email-config";
+import { sendEmail } from "@/server/integrations/resend";
+import { DEPOSIT_METHODS } from "@/lib/domain";
 
 type State = { ok?: boolean; error?: string; message?: string } | null;
 const uuid = z.string().uuid();
@@ -138,17 +145,14 @@ export async function saveStoreAction(_prev: State, formData: FormData): Promise
   const f = formObject(formData);
   const value = {
     whatsapp: f.whatsapp ?? "",
-    phone: f.phone ?? "",
-    email: f.email ?? "",
     instagram: f.instagram ?? "",
     facebook: f.facebook ?? "",
     address: { en: f.addressEn ?? "", ar: f.addressAr ?? "" },
-    hours: { en: f.hoursEn ?? "", ar: f.hoursAr ?? "" },
   };
   const res = await withAdmin("content.edit", ({ db, actor }) => saveSetting(db, "store", value, actor));
   if (!res.ok && "issues" in res) {
     const issue = res.issues?.[0] ?? "";
-    return { error: issue.startsWith("whatsapp") || issue.startsWith("phone") ? "invalid_phone" : issue === "instagram" || issue === "facebook" ? "invalid_url" : "invalid_input" };
+    return { error: issue.startsWith("whatsapp") ? "invalid_phone" : issue === "instagram" || issue === "facebook" ? "invalid_url" : "invalid_input" };
   }
   return done(res);
 }
@@ -178,13 +182,13 @@ export async function updateAdminAction(_prev: State, formData: FormData): Promi
 export async function setAdminPasswordAction(_prev: State, formData: FormData): Promise<State> {
   const id = uuid.safeParse(formData.get("id"));
   if (!id.success) return { error: "invalid_input" };
-  return done(await withAdmin("admins.manage", ({ db, actor }) => setAdminPasswordBySuperAdmin(db, id.data, String(formData.get("password") ?? ""), actor)));
+  return done(await withAdmin("admins.manage", ({ db, actor, admin }) => setAdminPasswordBySuperAdmin(db, id.data, String(formData.get("password") ?? ""), actor, admin.role)));
 }
 
 export async function resetAdminTotpAction(_prev: State, formData: FormData): Promise<State> {
   const id = uuid.safeParse(formData.get("id"));
   if (!id.success) return { error: "invalid_input" };
-  return done(await withAdmin("admins.manage", ({ db, actor }) => resetAdminTotp(db, id.data, actor)));
+  return done(await withAdmin("admins.manage", ({ db, actor, admin }) => resetAdminTotp(db, id.data, actor, admin.role)));
 }
 
 // Messages ---------------------------------------------------------------------
@@ -194,4 +198,73 @@ export async function setMessageStatusAction(formData: FormData): Promise<void> 
   if (!p.success) return;
   await withAdmin("messages.view", ({ db }) => setContactStatus(db, p.data.id, p.data.status));
   refresh();
+}
+
+// Payments / deposits (owners and Super Admins) -------------------------------
+
+export async function savePaymentsAction(_prev: State, formData: FormData): Promise<State> {
+  const f = formObject(formData);
+  const methods = Object.fromEntries(
+    DEPOSIT_METHODS.map((m) => [m, { enabled: formData.get(`${m}_enabled`) === "on", instructions: { en: f[`${m}_en`] ?? "", ar: f[`${m}_ar`] ?? "" } }]),
+  ) as Record<(typeof DEPOSIT_METHODS)[number], { enabled: boolean; instructions: { en: string; ar: string } }>;
+  // An enabled method must tell customers where to send the money.
+  if (DEPOSIT_METHODS.some((m) => methods[m].enabled && (!methods[m].instructions.en.trim() || !methods[m].instructions.ar.trim()))) {
+    return { error: "instructions_required" };
+  }
+  const wantManual = formData.get("manualApproved") === "on";
+  return done(
+    await withAdmin("payments.manage", async ({ db, actor, admin }) => {
+      const current = await getSetting(db, "payments");
+      let manualFallback = current.manualFallback;
+      if (wantManual !== current.manualFallback.approved) {
+        // Approving (or withdrawing) the manual fallback is an OWNER decision.
+        if (admin.role !== "OWNER") return { ok: false as const, error: "owner_required" };
+        manualFallback = wantManual ? { approved: true, approvedBy: admin.displayName, approvedAt: new Date().toISOString() } : { approved: false, approvedBy: null, approvedAt: null };
+        await writeAudit(db, actor, { action: wantManual ? "payments.manualFallback.approved" : "payments.manualFallback.revoked", targetType: "setting", targetId: "payments" });
+      }
+      return saveSetting(db, "payments", { manualFallback, methods }, actor);
+    }),
+  );
+}
+
+// Notifications ---------------------------------------------------------------
+
+export async function sendTestNotificationAction(): Promise<State> {
+  const res = await withAdmin("notifications.manage", async ({ db, actor, admin }) => {
+    if (!(await consumeRateLimit(db, "notificationTest", admin.id))) return { ok: false as const, error: "rate_limited" };
+    const id = await createTestNotification(db, actor);
+    // Sent inline (not after the response) so the admin sees the real outcome.
+    const outcome = await dispatchNotification(db, id, await getNotifierConfig(), { manual: true });
+    return outcome === "sent" ? { ok: true as const } : { ok: false as const, error: `test_${outcome}` };
+  });
+  return done(res);
+}
+
+export async function retryNotificationAction(_prev: State, formData: FormData): Promise<State> {
+  const id = uuid.safeParse(formData.get("id"));
+  if (!id.success) return { error: "invalid_input" };
+  const res = await withAdmin("notifications.manage", async ({ db, actor }) => {
+    const outcome = await retryNotification(db, id.data, await getNotifierConfig(), actor);
+    return outcome === "sent" ? { ok: true as const } : { ok: false as const, error: `test_${outcome}` };
+  });
+  return done(res);
+}
+
+// Email (contact form) ---------------------------------------------------------
+
+/** Sends a fixed test email to CONTACT_FORM_EMAIL and reports Resend's real answer. */
+export async function sendTestEmailAction(): Promise<State> {
+  const res = await withAdmin("settings.edit", async ({ db, actor, admin }) => {
+    if (!(await consumeRateLimit(db, "testEmail", admin.id))) return { ok: false as const, error: "rate_limited" };
+    const status = await contactEmailStatus();
+    if (!status.config) return { ok: false as const, error: "email_not_configured" };
+    const sent = await sendEmail(status.config, { subject: "RoboNest.3D test email", text: "This is a test from the RoboNest.3D admin (Settings). If you received it, contact-form email delivery works." });
+    await writeAudit(db, actor, { action: "settings.email.test", targetType: "setting", targetId: "email", metadata: { ok: sent.ok, status: sent.ok ? 200 : sent.status ?? null } });
+    if (!sent.ok) {
+      console.error("test email failed", { error: sent.error, status: sent.status, detail: sent.detail });
+      return { ok: false as const, error: "email_rejected" };
+    }
+    return { ok: true as const };
+  });
+  return done(res);
 }

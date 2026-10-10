@@ -5,6 +5,9 @@ export const ADMIN = {
   ops: { username: "operations", password: "e2e-operations-password" },
 };
 
+/** Seeded with an already verified phone: automated tests cannot receive SMS. */
+export const CUSTOMER = { name: "E2E Customer", phone: "0790 111 2233", password: "e2e-customer-pass" };
+
 function base32Decode(s: string) {
   const A = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
   let bits = 0;
