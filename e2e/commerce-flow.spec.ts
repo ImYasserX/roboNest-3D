@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { ADMIN, CUSTOMER, totp } from "./fixtures";
+import { ADMIN, CUSTOMER, adminLogin } from "./fixtures";
 
 // The end-to-end journey, in order. Each step builds on the previous one, so
 // the file runs serially. The guest order is above 50,000 IQD, so it goes
@@ -9,24 +9,6 @@ test.describe.configure({ mode: "serial" });
 let orderNumber = "";
 let orderUrl = "";
 
-async function adminLogin(page: Page) {
-  await page.goto("/en/admin/login");
-  await page.getByLabel("Username").fill(ADMIN.super.username);
-  await page.getByLabel("Password").fill(ADMIN.super.password);
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await page.waitForURL(/verify/);
-  // Codes are single-use (replay protection): if this 30 s step's code was
-  // already used by an earlier test, wait for the next step, like a person would.
-  for (let attempt = 0; attempt < 3; attempt++) {
-    await page.getByLabel("Authentication code").fill(totp(ADMIN.super.totpSecret));
-    await page.getByRole("button", { name: "Verify" }).click();
-    await page.waitForURL(/\/en\/admin$/, { timeout: 8_000 }).catch(() => undefined);
-    if (/\/en\/admin$/.test(page.url())) return;
-    await page.waitForTimeout(30_000 - (Date.now() % 30_000) + 500);
-  }
-  throw new Error("TOTP sign-in failed");
-}
-
 async function fillAddress(page: Page) {
   await page.getByLabel("Governorate").selectOption({ label: "Erbil" });
   await page.getByLabel("City / town").fill("Erbil");
@@ -34,7 +16,7 @@ async function fillAddress(page: Page) {
   await page.getByLabel("Street and house details").fill("Street 40, house 12");
 }
 
-test("guest 74,000 IQD order: blocked until an owner configures deposits, then awaiting deposit with flat delivery", async ({ page }) => {
+test("guest 74,000 IQD order: awaiting a WhatsApp deposit with flat delivery; opening WhatsApp changes nothing", async ({ page }) => {
   await page.goto("/en");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "3D Models" }).click();
@@ -56,34 +38,8 @@ test("guest 74,000 IQD order: blocked until an owner configures deposits, then a
   await expect(page.getByText("Delivery (flat fee)")).toBeVisible();
   await expect(page.getByText(/need a deposit of 30% of the products total/)).toBeVisible();
   await page.getByRole("link", { name: "Proceed to checkout" }).click();
-  await expect(page.getByText("Orders of this size cannot be placed online yet")).toBeVisible();
-  await page.getByLabel("Full name").fill("Guest Buyer");
-  await page.getByLabel("Mobile number").fill("0770 999 8877");
-  await fillAddress(page);
-  await page.getByRole("button", { name: "Place order" }).click();
-  // The server refuses too: the browser cannot bypass the deposit rule.
-  await expect(page.locator("#checkout-error")).toContainText("Orders of this size need a deposit");
-  await expect(page).toHaveURL(/\/en\/checkout$/);
-
-  // An owner configures deposits in a separate browser session; the guest keeps the cart.
-  const ownerContext = await page.context().browser()!.newContext();
-  const ownerPage = await ownerContext.newPage();
-  await adminLogin(ownerPage);
-  await ownerPage.goto("/en/admin/payments");
-  await expect(ownerPage.getByText("Deposits cannot be paid: high-value orders are blocked")).toBeVisible();
-  // A Super Admin cannot change the owners' approval of the manual fallback.
-  await expect(ownerPage.locator("#manualApproved")).toBeDisabled();
-  await expect(ownerPage.getByText(/Approved by E2E test fixture/)).toBeVisible();
-  await ownerPage.locator("#FIB_enabled").check();
-  await ownerPage.locator("#FIB_en").fill("FIB account RoboNest.3D, number 0000 (test)");
-  await ownerPage.locator("#FIB_ar").fill("حساب FIB باسم RoboNest.3D، رقم 0000 (تجربة)");
-  await ownerPage.getByRole("button", { name: "Save changes" }).click();
-  await expect(ownerPage.getByText("Saved.").first()).toBeVisible();
-  await expect(ownerPage.getByText("Deposits cannot be paid: high-value orders are blocked")).toHaveCount(0);
-  await ownerContext.close();
-
-  // Now the guest can place the high-value order.
-  await page.goto("/en/checkout");
+  // Deposits are always payable now (manual WhatsApp payment), so the order can be placed.
+  await expect(page.getByText("A deposit is required for this order")).toBeVisible();
   await page.getByLabel("Full name").fill("Guest Buyer");
   await page.getByLabel("Mobile number").fill("0770 999 8877");
   await fillAddress(page);
@@ -99,12 +55,30 @@ test("guest 74,000 IQD order: blocked until an owner configures deposits, then a
   orderUrl = page.url();
   expect(orderNumber).toMatch(/^RN-\d{6}-[A-Z0-9]{6}$/);
   await expect(page.getByText("Current status: Awaiting deposit")).toBeVisible();
-  await expect(page.getByText("FIB account RoboNest.3D, number 0000 (test)")).toBeVisible();
-  await page.getByLabel("Transaction reference").fill("FIB-TEST-12345");
-  await page.getByRole("button", { name: "Send transfer details" }).click();
-  await expect(page.getByText(/We received your transfer details/).first()).toBeVisible();
+
+  // The manual payment step: reference, amount from the order, purpose, WhatsApp.
+  const step = page.getByTestId("payment-step");
+  await expect(step).toContainText(orderNumber);
+  await expect(step.getByTestId("amount-due")).toHaveText(/22,200\sIQD/);
+  await expect(step).toContainText("Upfront deposit (30%)");
+  const wa = step.getByTestId("whatsapp-payment");
+  const href = (await wa.getAttribute("href"))!;
+  expect(href.startsWith("https://wa.me/9647518911112?text=")).toBe(true);
+  const text = decodeURIComponent(href.split("?text=")[1]);
+  expect(text).toBe(`Hello RoboNest.3D, I would like to confirm the deposit for order ${orderNumber}. Amount: 22,200 IQD.`);
+  expect(text).not.toMatch(/0770|Guest Buyer|t=|token/i); // no personal data or link token
+  await expect(wa).toHaveAttribute("target", "_blank");
+  await expect(wa).toHaveAttribute("rel", /noopener/);
+  // Opening WhatsApp changes nothing: the deposit is still awaited after a reload.
+  const popup = page.waitForEvent("popup").catch(() => null);
+  await wa.click();
+  await (await popup)?.close();
   await page.reload();
-  await expect(page.getByText("Current status: Deposit being checked")).toBeVisible();
+  await expect(page.getByText("Current status: Awaiting deposit")).toBeVisible();
+  await expect(page.getByTestId("amount-due")).toHaveText(/22,200\sIQD/);
+  // The retired reference form and online-payment buttons are gone.
+  await expect(page.getByLabel("Transaction reference")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Pay with FIB|I have paid/ })).toHaveCount(0);
   // No public lookup: without the link token and not signed in, the order is hidden.
   const anonymous = await page.context().browser()!.newPage();
   await anonymous.goto(`/en/orders/${orderNumber}`);
@@ -154,7 +128,7 @@ test("registration is unavailable without an SMS provider; seeded verified custo
 test("admin signs in with TOTP and edits a product price", async ({ page }) => {
   await adminLogin(page);
   await page.goto("/en/admin/products?q=calibration");
-  await page.getByRole("link", { name: "Calibration Cube Set" }).click();
+  await page.getByRole("link", { name: "Calibration Cube Set", exact: true }).click();
   await page.getByLabel("Base price (IQD)").fill("6000");
   await page.getByRole("button", { name: "Save product" }).click();
   await expect(page.getByText("Saved.").first()).toBeVisible();
@@ -164,19 +138,44 @@ test("admin signs in with TOTP and edits a product price", async ({ page }) => {
   await expect(page.getByText("product.price.changed").first()).toBeVisible();
 });
 
-test("admin verifies the deposit, then moves the order through production; the guest sees it", async ({ page, browser }) => {
+test("a Super Admin can see but not confirm payments", async ({ page }) => {
   await adminLogin(page);
+  await page.goto(`/en/admin/orders?q=${orderNumber}`);
+  await page.getByRole("link", { name: orderNumber }).click();
+  const panel = page.getByTestId("payment-panel");
+  await expect(panel).toContainText("Only an Owner can confirm");
+  await expect(panel.getByRole("button", { name: "Confirm payment" })).toHaveCount(0);
+  await page.goto("/en/admin/payments");
+  await expect(page.getByText("Only an Owner can confirm, dispute or refund payments")).toBeVisible();
+  await expect(page.getByRole("link", { name: orderNumber })).toBeVisible();
+  await expect(page.getByTestId(`confirm-payment-${orderNumber}`)).toHaveCount(0);
+});
+
+test("the Owner confirms the deposit, then the order moves through production; the guest sees it", async ({ page, browser }) => {
+  await adminLogin(page, "owner");
+  await page.goto(`/en/admin/payments?view=awaiting`);
+  await expect(page.getByRole("link", { name: orderNumber })).toBeVisible();
   await page.goto(`/en/admin/orders?q=${orderNumber}`);
   await page.getByRole("link", { name: orderNumber }).click();
   // Before verification the only generic transition is cancellation.
   await expect(page.locator("#to option")).toHaveText(["Cancelled"]);
-  await expect(page.getByText("FIB-TEST-12345")).toBeVisible();
-  // Verifying requires typing the amount seen in the provider account.
-  await page.getByRole("button", { name: "Verify deposit" }).click();
-  await expect(page.getByText(/must equal the required deposit exactly/)).toBeVisible();
-  await page.getByLabel("Amount received (IQD)").fill("22200");
-  await page.getByRole("button", { name: "Verify deposit" }).click();
-  await expect(page.getByText("Verified", { exact: true }).first()).toBeVisible();
+  const panel = page.getByTestId("payment-panel");
+  await panel.getByTestId(`confirm-payment-${orderNumber}`).click();
+  const dialog = page.getByRole("dialog", { name: "Confirm that this payment was received" });
+  await expect(dialog).toContainText(orderNumber);
+  await expect(dialog).toContainText(/22,200\sIQD/);
+  await expect(dialog).toContainText("Upfront deposit");
+  // A wrong amount is refused; the amount must match what the order says is due.
+  await dialog.getByLabel("Amount received (IQD)").fill("20000");
+  await dialog.getByLabel("I checked that this money actually arrived.").check();
+  await dialog.getByRole("button", { name: /Confirm .* received/ }).click();
+  await expect(dialog.getByText(/must be exactly the amount due/)).toBeVisible();
+  await dialog.getByLabel("Amount received (IQD)").fill("22200");
+  await dialog.getByLabel("What you checked").fill("FIB transfer seen in the account (E2E)");
+  await dialog.getByRole("button", { name: /Confirm .* received/ }).click();
+  await expect(dialog).toBeHidden();
+  await expect(panel.getByText("Confirmed", { exact: true }).first()).toBeVisible();
+  await expect(panel).toContainText("FIB transfer seen in the account (E2E)");
   for (const next of ["Confirmed", "Printing", "Quality check", "Ready for delivery", "Out for delivery"]) {
     await page.getByLabel("Move to").selectOption({ label: next });
     if (next === "Out for delivery") await page.getByLabel("Message to customer").fill("Courier will call before arriving.");
@@ -184,18 +183,21 @@ test("admin verifies the deposit, then moves the order through production; the g
     // Wait for the refreshed form: the status just applied is no longer offered.
     await expect(page.locator("#to option").filter({ hasText: new RegExp(`^${next}$`) })).toHaveCount(0);
   }
-  await page.goto("/en/admin/audit-log?action=order.deposit.verified");
-  await expect(page.getByText("order.deposit.verified").first()).toBeVisible();
-  // Telegram is not configured in tests: the alert waits, the order is unaffected.
-  await page.goto("/en/admin/notifications");
-  await expect(page.getByText("Telegram is not configured", { exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: orderNumber }).first()).toBeVisible();
+  // The deposit never marks the whole order paid.
+  await expect(panel).toContainText("Awaiting payment");
+  await page.goto("/en/admin/audit-log?action=payment.deposit.confirmed");
+  await expect(page.getByText("payment.deposit.confirmed").first()).toBeVisible();
+  await page.goto("/en/admin/payments?view=history");
+  await expect(page.getByRole("link", { name: orderNumber })).toBeVisible();
+  await expect(page.getByText("E2E test owner").first()).toBeVisible();
 
   const guest = await browser.newPage();
   await guest.goto(orderUrl);
   await expect(guest.getByText("Current status: Out for delivery")).toBeVisible();
-  await expect(guest.getByText(/Your deposit of 22,200\sIQD was received and verified/)).toBeVisible();
+  await expect(guest.getByText(/Your deposit of 22,200\sIQD was received and verified by our team/)).toBeVisible();
   await expect(guest.getByText("Courier will call before arriving.")).toBeVisible();
+  // The balance is still open (cash on delivery, or WhatsApp in advance).
+  await expect(guest.getByTestId("amount-due")).toHaveText(/56,800\sIQD/);
   await guest.close();
 });
 

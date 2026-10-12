@@ -4,6 +4,10 @@ This guide is sequential. Do every step in order and **stop** when a step says s
 
 **Local vs remote.** Wrangler commands act on your **local** simulator unless they include `--remote`. Local data lives in `.wrangler/state/` on your computer. Anything with `--remote`, `wrangler secret put`, `wrangler deploy`, or a change in the Cloudflare dashboard affects **production**.
 
+**Domains.** RoboNest.3D's own domain (planned: `robonest3d.tech`) is not purchased yet and is not needed until step 12. `robonest.tech` belongs to the **separate electronics store**: never change its DNS, email forwarding or Resend records from this project. Using `contact@robonest.tech` (recipient) and `no-reply@robonest.tech` (sender) relies on the email setup that already exists on that domain; whether to keep that or move RoboNest.3D email to its own domain later is an owner decision.
+
+**Local first.** Everything can be built and tested locally without any of these steps: [docs/LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md).
+
 **Approval rule.** Steps marked **OWNER APPROVAL** are irreversible or affect real customers. Run them only after both owners agree, ideally with one person typing and the other reading along.
 
 Never paste secret values into chats, tickets, screenshots or commit messages. `wrangler secret put` prompts for the value, so it does not end up in your shell history.
@@ -41,7 +45,10 @@ Never paste secret values into chats, tickets, screenshots or commit messages. `
     - **Contact-message table rebuild:** creates `__new_contact_messages`, copies every row (email and delivery status set to NULL for old rows), drops the old table, renames the new one. No message content is changed. On an empty database it is harmless.
     - **Delivery-fee updates:** `UPDATE delivery_zones SET fee = 5000` and the same for `delivery_areas`. This overwrites any per-governorate fees. The app already ignores those columns (flat 5,000 IQD), so this only keeps exports consistent.
     - Adds deposit columns, phone verification, the notification outbox, and protective triggers for owners and deposits.
-  - `0002_deposit_rate_online_whatsapp.sql`: online deposit payments table, WhatsApp code-hash columns, and triggers that enforce the 30% deposit rule.
+  - `0002_deposit_rate_online_whatsapp.sql`: online deposit payments table (now history only), WhatsApp code-hash columns, and triggers that enforce the 30% deposit rule.
+  - `0003_turntable_previews_no_resin.sql`: turntable frames table (kept as history) and removal of a stored RESIN custom-print material.
+  - `0004_preview_proxies.sql`: additive. `preview_models` table, fingerprint columns on `digital_files`, triggers that keep previews and paid files apart.
+  - `0005_manual_payment_verification.sql`: additive. `payment_verifications` ledger and triggers: no PAID / VERIFIED without an Owner's recorded confirmation, exact amounts, one confirmation per order and kind, append-only. Existing paid or verified orders are not changed.
 - **Success:** you understand every statement, and the pending list is exactly the files you reviewed.
 - **Stop if:** the remote database already has orders or messages you did not expect. Take the backup in step 5 first and review again.
 
@@ -62,24 +69,25 @@ Never paste secret values into chats, tickets, screenshots or commit messages. `
 
 - **Purpose:** make sure everything is set, without ever displaying values.
 - **Do:** `npx wrangler secret list` shows **names only**. Compare with `.env.example`. In `wrangler.jsonc` → `vars`, set `SITE_URL` to the real https origin (no trailing slash) and keep `CONTACT_FORM_EMAIL` = `contact@robonest.tech`.
-- **Required secrets:** `APP_SECRET` (generate with `openssl rand -base64 48`; store it in the owners' password manager; changing it later invalidates enrolled authenticators and order links). Then: `RESEND_API_KEY`, `CONTACT_FROM_EMAIL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_IDS`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID`. Optional (only when ready): `WHATSAPP_*`, `FIB_*`.
+- **Required secrets:** `APP_SECRET` (generate with `openssl rand -base64 48`; store it in the owners' password manager; changing it later invalidates enrolled authenticators and order links). Then: `RESEND_API_KEY`, `CONTACT_FROM_EMAIL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_IDS`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID`. Optional (only when ready): `WHATSAPP_*`. (`FIB_*` is retired and ignored.)
+- **`OUTBOUND_INTEGRATIONS`:** must **not** be set in production (it would silently disable email, Telegram, SMS and payments). It **must** be `disabled` on any staging copy that the E2E suite runs against; the suite refuses to run otherwise.
 - **Set each:** `npx wrangler secret put NAME` (prompts for the value). **OWNER APPROVAL** for production secrets.
 - **Success:** `wrangler secret list` shows every required name; admin → Settings (after step 7) shows "Yes" for each integration.
 - **Stop if:** a secret value was ever pasted into a chat, document or commit. Rotate it at the provider first.
 
 ## 7. Provision both owner accounts
 
-- **Purpose:** create Yasser Elyas and Ayman Ramadhan as the only two owners, each with a password only they know.
+- **Purpose:** create Yasser and Ayman as the only two owners, each with a password only they know.
 - **Do (each owner, on their own computer):** `npm run owner:bootstrap -- yasser` (or `ayman`). Choose a username and a strong password (from a password manager). Then **OWNER APPROVAL** → `npx wrangler d1 execute robonest-3d --remote --file=.owner-yasser.sql` and immediately `rm .owner-yasser.sql`.
 - **Verify:** `npx wrangler d1 execute robonest-3d --remote --command "SELECT username, display_name, role, status, totp_enabled FROM admin_users WHERE role = 'OWNER'"`.
-- **Success:** exactly two rows, "Yasser Elyas" and "Ayman Ramadhan", role OWNER, status ACTIVE. At first sign-in (after deployment) each owner must enroll an authenticator app before any admin page opens.
+- **Success:** exactly two rows, "Yasser" and "Ayman", role OWNER, status ACTIVE. At first sign-in (after deployment) each owner must enroll an authenticator app before any admin page opens.
 - **Stop if:** a third row appears (the database trigger should prevent it) or a display name is wrong. Do not continue; investigate.
 
 ## 8. Configure Resend and test real delivery
 
 - **Purpose:** contact-form messages must reach `contact@robonest.tech`, sent from a separate, verified sender.
 - **Variables:** `CONTACT_FORM_EMAIL` = `contact@robonest.tech` (already in `wrangler.jsonc` vars, not a secret). `CONTACT_FROM_EMAIL` = a **different** address on the verified domain, e.g. `RoboNest.3D <no-reply@robonest.tech>`; the app refuses to send when sender and recipient are the same. `RESEND_API_KEY` = secret.
-- **Domain (Resend dashboard → Domains → robonest.tech):** status must be **Verified**. The DNS records Resend lists (DKIM `resend._domainkey`, SPF and MX on `send.`) must exist; `npm run email:check` confirms them via public DNS. Adding or changing DNS records is **OWNER APPROVAL**.
+- **Domain (Resend dashboard → Domains → robonest.tech):** status must be **Verified**. The Resend DNS records on `robonest.tech` (DKIM `resend._domainkey`, SPF and MX on `send.`) already exist and are shared with the electronics store: **do not change them from this project**. `npm run email:check` confirms them via public DNS. If RoboNest.3D later sends from `robonest3d.tech`, that domain must be added and verified in Resend (DNS change, **OWNER APPROVAL**).
 - **Receiving:** `contact@robonest.tech` is received through **Porkbun email forwarding** (MX `fwd1/fwd2.porkbun.com`). In Porkbun → Email Forwarding, confirm a forward for `contact@` exists and points to an inbox an owner reads. DNS cannot show this.
 - **Local:** keep `RESEND_API_KEY` and `CONTACT_FROM_EMAIL` in `.dev.vars` (not `.env.local`; `.env*` values are copied into build bundles and `npm run cf:build` refuses them).
 - **Production secrets (OWNER APPROVAL):** `npx wrangler secret put RESEND_API_KEY` and `npx wrangler secret put CONTACT_FROM_EMAIL`.
@@ -112,13 +120,20 @@ Use a **staging** copy (a second Worker and database, not production) or product
 - **Standard order** (below 50,000 IQD): delivery 5,000 IQD; status Received; Telegram alert to both owners.
 - **Exactly 50,000 IQD** products total: no deposit.
 - **High-value order** (e.g. 74,000): checkout shows deposit 22,200 (30%) and balance 56,800 (delivery included in the balance, not in the 30%).
-  - If neither FIB nor the manual fallback is available, checkout must refuse it.
+  - The order page shows the deposit, purpose and a **Confirm payment on WhatsApp** button (`https://wa.me/9647518911112?text=…` with only the order number and amount). Opening it changes nothing.
+  - An **Owner** (admin → Payments) confirms the deposit only after seeing the money; a Super Admin sees the queue but cannot confirm. Then confirm the balance after delivery and check a digital order's downloads unlock only after its full payment is confirmed.
   - **Manual fallback**: an owner approves it in admin → Payments, enables a method and writes the transfer instructions. Customer transfers and enters the reference. Admin checks the real provider account, types 22200, verifies. Confirm the order. Check the audit log entries.
-  - **FIB** (only with credentials, sandbox first): follow `docs/PAYMENTS.md` → "To enable".
 - **Cancellation:** cancel an order awaiting a deposit; cancel a confirmed order; check stock and discount are restored.
-- **Refunds:** there is no refund API. Agree the deposit refund rules first (open owner decision), then rehearse how a refund is made and recorded (admin notes, audit log).
+- **Refunds:** there is no refund API. Agree the deposit refund rules first (open owner decision), return money outside the website, then record it with **Record refund** (admin → order → Payment), which writes the ledger and the audit log.
 - **Success:** every result above matches; nothing is marked paid without a verified check.
 - **Stop if:** any order can be confirmed without a verified deposit, or any amount differs from the rules.
+
+## 11b. Interactive 3D previews (reduced proxies only)
+
+- **Purpose:** the 3D viewer must show an approved, reduced preview proxy, never a paid file.
+- **Do:** in admin → product → 3D preview, choose a paid STL/OBJ/GLB (up to 25 MB) and a detail level, press "Generate preview", open "Review in 3D", then an Owner or Super Admin presses "Approve and publish". For larger originals, or products without a paid file, run `npm run preview:proxy -- model.stl` on an owner's computer and upload the resulting `.preview.glb` with "Upload a proxy GLB". Legacy GLBs: press "Check legacy GLB"; it only reports. Nothing is published without approval.
+- **Check:** on the product page, press "3D view" then "Load 3D preview" with the browser's Network tab open: exactly one `model/gltf-binary` response, from `/api/previews/<id>`, well under 1 MB; nothing from `/media/…glb`, `digital/` or any third-party domain; no CSP errors in the console. Withdraw the preview and confirm the same URL returns 404.
+- **Stop if:** a model response is larger than a few MB, comes from anywhere other than `/api/previews/`, or a paid file's download works without a purchase.
 
 ## 12. Final smoke test before public launch
 

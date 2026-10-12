@@ -14,7 +14,8 @@ export function AdminUploadButton({ productId, purpose, accept, label, hint }: {
 
   async function upload(files: FileList) {
     setState({ busy: true });
-    for (const file of Array.from(files)) {
+    const list = Array.from(files);
+    for (const file of list) {
       const res = await fetch(`/api/admin/uploads?purpose=${purpose}&productId=${productId}&filename=${encodeURIComponent(file.name)}`, { method: "POST", body: file });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };

@@ -1,9 +1,9 @@
 import "server-only";
 import { after } from "next/server";
 import { getDb } from "@/server/db/client";
-import { getServerVar, getSiteUrl, reportMissingConfig } from "@/server/env";
+import { getServerVar, getSiteUrl, outboundIntegrationsDisabled, reportMissingConfig } from "@/server/env";
 import { parseChatIdsStrict } from "@/server/integrations/telegram";
-import { dispatchPending, type NotifierConfig } from "@/server/services/notifications";
+import { dispatchPending, suppressNotifications, type NotifierConfig } from "@/server/services/notifications";
 
 /** Telegram settings from server secrets; null (and a log line naming the variables) when incomplete. */
 export async function getNotifierConfig(): Promise<NotifierConfig | null> {
@@ -29,6 +29,10 @@ export async function getNotifierConfig(): Promise<NotifierConfig | null> {
  */
 export function scheduleNotifications(eventIds: string[]) {
   after(async () => {
-    await dispatchPending(await getDb(), await getNotifierConfig(), eventIds);
+    const db = await getDb();
+    // Kill switch on (E2E, tests, quiet local work): these alerts are for
+    // throwaway orders. Suppress them permanently and do not run retries.
+    if (await outboundIntegrationsDisabled()) return suppressNotifications(db, eventIds);
+    await dispatchPending(db, await getNotifierConfig(), eventIds);
   });
 }

@@ -22,6 +22,27 @@
       "when": 1791633179213,
       "tag": "0002_deposit_rate_online_whatsapp",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1791790309850,
+      "tag": "0003_turntable_previews_no_resin",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791793704096,
+      "tag": "0004_preview_proxies",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1791798187821,
+      "tag": "0005_manual_payment_verification",
+      "breakpoints": true
     }
   ]
 }

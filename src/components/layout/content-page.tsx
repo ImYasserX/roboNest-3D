@@ -6,9 +6,10 @@ import { Container, PageHeader } from "@/components/ui/misc";
 
 type Section = { title: string; body: string | string[] };
 export type ContentPageKey = "about" | "returns" | "privacy" | "terms" | "delivery" | "payment";
+export type ContentSection = Section;
 
 /** Fills {placeholders} in policy text with live business values (fees, thresholds). */
-function fill(text: string, values: Record<string, string>) {
+export function fill(text: string, values: Record<string, string>) {
   return text.replace(/\{(\w+)\}/g, (m, k: string) => values[k] ?? m);
 }
 
@@ -19,15 +20,7 @@ function fill(text: string, values: Record<string, string>) {
  */
 export async function ContentPage({ pageKey, children, before, values = {} }: { pageKey: ContentPageKey; children?: React.ReactNode; before?: React.ReactNode; values?: Record<string, string> }) {
   const [t, locale] = await Promise.all([getTranslations(`pages.${pageKey}`), getLocale()]);
-  // Business facts come from code, never retyped in the policy text.
-  const facts: Record<string, string> = {
-    fee: formatIQD(FLAT_DELIVERY_FEE_IQD, locale),
-    threshold: formatIQD(DEPOSIT_THRESHOLD_IQD, locale),
-    email: BUSINESS.email,
-    phones: BUSINESS.phones.map((p) => p.display).join(locale === "ar" ? " و " : " and "),
-    hours: locale === "ar" ? BUSINESS.hours.ar : BUSINESS.hours.en,
-    ...values,
-  };
+  const facts = { ...contentFacts(locale), ...values };
   const sections = t.raw("sections") as Section[];
   const updated = t.has("updated") ? (t.raw("updated") as string) : null;
   return (
@@ -48,6 +41,18 @@ export async function ContentPage({ pageKey, children, before, values = {} }: { 
       {children}
     </Container>
   );
+}
+
+/** Business facts come from code, never retyped in the policy text. */
+export function contentFacts(locale: string): Record<string, string> {
+  return {
+    fee: formatIQD(FLAT_DELIVERY_FEE_IQD, locale),
+    threshold: formatIQD(DEPOSIT_THRESHOLD_IQD, locale),
+    email: BUSINESS.email,
+    phones: BUSINESS.phones.map((p) => p.display).join(locale === "ar" ? " و " : " and "),
+    whatsapp: BUSINESS.whatsapp.display,
+    hours: locale === "ar" ? BUSINESS.hours.ar : BUSINESS.hours.en,
+  };
 }
 
 export async function contentMetadata(locale: string, pageKey: ContentPageKey, path: string) {

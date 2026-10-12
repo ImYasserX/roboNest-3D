@@ -27,7 +27,7 @@ describe("owner provisioning and protection", () => {
     await provision("yasser", "yasser-again"); // same owner again: no-op
     await provision("ayman", "ayman");
     const owners = await p.db.select({ displayName: adminUsers.displayName, role: adminUsers.role, totpEnabled: adminUsers.totpEnabled }).from(adminUsers).where(eq(adminUsers.role, "OWNER"));
-    expect(owners.map((o) => o.displayName).sort()).toEqual(["Ayman Ramadhan", "Yasser Elyas"]);
+    expect(owners.map((o) => o.displayName).sort()).toEqual(["Ayman", "Yasser"]);
     expect(owners.every((o) => o.totpEnabled === false)).toBe(true); // TOTP enrollment is forced at first sign-in
     expect(await dbError(p.db.insert(adminUsers).values({ username: "third", displayName: "Third", role: "OWNER", passwordHash: await hashPassword("owner-password-long") }))).toMatch(/owner_limit/);
   });
@@ -35,8 +35,8 @@ describe("owner provisioning and protection", () => {
   it("cannot be created, demoted, disabled or deleted through the app or the database", async () => {
     expect(await createAdminUser(p.db, { username: "sneaky", displayName: "Sneaky", role: "OWNER", password: "long-enough-password" }, actor)).toEqual({ ok: false, error: "invalid_input" });
     const [yasser] = await p.db.select().from(adminUsers).where(eq(adminUsers.username, "yasser"));
-    expect(await updateAdminUser(p.db, yasser.id, { role: "OPERATIONS", status: "ACTIVE", displayName: "Yasser Elyas" }, actor)).toEqual({ ok: false, error: "owner_protected" });
-    expect(await updateAdminUser(p.db, yasser.id, { role: "SUPER_ADMIN", status: "DISABLED", displayName: "Yasser Elyas" }, actor)).toEqual({ ok: false, error: "owner_protected" });
+    expect(await updateAdminUser(p.db, yasser.id, { role: "OPERATIONS", status: "ACTIVE", displayName: "Yasser" }, actor)).toEqual({ ok: false, error: "owner_protected" });
+    expect(await updateAdminUser(p.db, yasser.id, { role: "SUPER_ADMIN", status: "DISABLED", displayName: "Yasser" }, actor)).toEqual({ ok: false, error: "owner_protected" });
     expect(await dbError(p.db.update(adminUsers).set({ role: "OPERATIONS" }).where(eq(adminUsers.id, yasser.id)))).toMatch(/owner_protected/);
     expect(await dbError(p.db.update(adminUsers).set({ status: "DISABLED" }).where(eq(adminUsers.id, yasser.id)))).toMatch(/owner_protected/);
     expect(await dbError(p.db.delete(adminUsers).where(eq(adminUsers.id, yasser.id)))).toMatch(/owner_protected/);

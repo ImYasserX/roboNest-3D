@@ -5,22 +5,22 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { CubeIcon } from "@/components/ui/icons";
 import { cn } from "@/components/ui/cn";
-import { ModelPreview } from "./model-preview";
+import { ModelViewer } from "./model-viewer";
 
 type GalleryImage = { src: string; alt: string; width: number | null; height: number | null };
 
-export function ProductGallery({ images, name, previewSrc, previewSize }: { images: GalleryImage[]; name: string; previewSrc?: string; previewSize?: string }) {
+export function ProductGallery({ images, name, preview }: { images: GalleryImage[]; name: string; preview: { src: string } | null }) {
   const t = useTranslations("product");
-  const slides = images.length + (previewSrc ? 1 : 0);
+  const slides = images.length + (preview ? 1 : 0);
   const [index, setIndex] = useState(0);
-  const showingPreview = previewSrc && index === images.length;
+  const showingPreview = preview !== null && (index === images.length || images.length === 0);
   const current = images[index];
 
   return (
     <section aria-label={t("gallery")} className="space-y-3">
       <div className="relative">
         {showingPreview ? (
-          <ModelPreview src={previewSrc} name={name} sizeLabel={previewSize} />
+          <ModelViewer src={preview.src} name={name} />
         ) : current ? (
           <div className="relative aspect-square overflow-hidden rounded-xl border border-border bg-surface-2">
             <Image
@@ -59,12 +59,12 @@ export function ProductGallery({ images, name, previewSrc, previewSize }: { imag
               </button>
             </li>
           ))}
-          {previewSrc ? (
+          {preview ? (
             <li className="shrink-0">
               <button
                 type="button"
                 onClick={() => setIndex(images.length)}
-                aria-pressed={showingPreview ? true : false}
+                aria-pressed={showingPreview}
                 className={cn("flex size-18 flex-col items-center justify-center gap-1 rounded-lg border-2 bg-surface-2 text-xs font-semibold sm:size-20", showingPreview ? "border-primary" : "border-border hover:border-border-strong")}
               >
                 <CubeIcon size={22} className="text-primary-text" />

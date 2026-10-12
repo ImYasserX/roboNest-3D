@@ -102,31 +102,45 @@ for (const [locale, dir] of [["en", "ltr"], ["ar", "rtl"]] as const) {
   }
 }
 
-test("theme choice persists across reloads without a flash of the other theme", async ({ page }) => {
-  await page.emulateMedia({ colorScheme: "dark" });
+test("theme: exactly Light and Dark, default Dark (even on a light OS), choice persists without a flash", async ({ page, request }) => {
+  // The OS preference no longer matters: there is no System option.
+  await page.emulateMedia({ colorScheme: "light" });
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/en");
-  await expect(page.locator("html")).not.toHaveAttribute("data-theme", /.+/);
-  const toggle = page.getByRole("button", { name: /^Theme: System/ });
-  await toggle.click(); // system → light
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.getByRole("button", { name: /^Theme: Dark/ }).click(); // dark → light
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-  expect(bg).toBe("rgb(247, 246, 251)");
+  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(247, 246, 251)");
   await page.reload();
-  // Rendered by the server from the cookie, so it is correct before any script runs.
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await page.getByRole("button", { name: /^Theme: Light/ }).click(); // light → dark
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await page.getByRole("button", { name: /^Theme: Dark/ }).click(); // dark → system
-  await expect(page.locator("html")).not.toHaveAttribute("data-theme", /.+/);
+  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(12, 10, 20)");
+  // No flash: the server's HTML already carries the theme, before any script runs.
+  for (const [cookie, theme] of [["rn_theme=light", "light"], ["rn_theme=dark", "dark"], ["rn_theme=system", "dark"], ["", "dark"]] as const) {
+    const html = await (await request.get("/ar", { headers: cookie ? { cookie } : {} })).text();
+    expect(html).toMatch(new RegExp(`<html[^>]*data-theme="${theme}"`));
+  }
 });
 
-test("system preference picks the light theme when no choice is saved", async ({ page }) => {
-  await page.emulateMedia({ colorScheme: "light" });
-  await page.goto("/en");
-  const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-  expect(bg).toBe("rgb(247, 246, 251)");
-});
+for (const locale of ["en", "ar"] as const) {
+  test(`mobile theme chooser offers exactly two options (${locale})`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    await page.goto(`/${locale}`);
+    await page.getByTestId("menu-button").click();
+    const menu = page.getByTestId("mobile-menu");
+    await expect(menu.getByRole("radio")).toHaveCount(2);
+    const light = menu.locator("label", { has: page.locator('input[value="light"]') });
+    const dark = menu.locator("label", { has: page.locator('input[value="dark"]') });
+    await expect(light).toBeInViewport();
+    await expect(dark).toBeInViewport();
+    await light.click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await expect(menu.locator('input[value="light"]')).toBeChecked();
+    await dark.click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  });
+}
 
 test("favicon, icons and manifest are served from the brand mark", async ({ page, request }) => {
   await page.goto("/en");
@@ -146,8 +160,9 @@ test("footer policy links resolve and show the confirmed contact details", async
   await page.goto("/en");
   const footer = page.locator("footer");
   await expect(footer.getByText("support@robonest.tech")).toBeVisible();
-  await expect(footer.getByText("0751-891-1112")).toBeVisible();
-  await expect(footer.getByText("0751-546-9566")).toBeVisible();
+  await expect(footer.getByRole("link", { name: "0751-891-1112", exact: true })).toHaveAttribute("href", "tel:+9647518911112");
+  await expect(footer.getByRole("link", { name: "0751-546-9566", exact: true })).toHaveAttribute("href", "tel:+9647515469566");
+  await expect(footer.getByRole("link", { name: /WhatsApp/ })).toHaveAttribute("href", "https://wa.me/9647518911112");
   await expect(footer.getByText(/9:00 AM to 9:00 PM/)).toBeVisible();
   for (const path of ["/delivery", "/payment", "/returns", "/privacy", "/terms", "/faq", "/contact", "/about"]) {
     const res = await page.goto(`/en${path}`);

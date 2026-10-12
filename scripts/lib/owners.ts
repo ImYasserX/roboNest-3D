@@ -1,8 +1,9 @@
-// The two RoboNest.3D owners (confirmed by the business, 2026-10-10). Only
-// these display names can be provisioned with the OWNER role.
+// The two RoboNest.3D owners (confirmed by the business, 2026-10-10; display
+// names shortened at the owners' request, 2026-10-12). Only these display
+// names can be provisioned with the OWNER role.
 export const OWNERS = {
-  yasser: { displayName: "Yasser Elyas" },
-  ayman: { displayName: "Ayman Ramadhan" },
+  yasser: { displayName: "Yasser" },
+  ayman: { displayName: "Ayman" },
 } as const;
 export type OwnerKey = keyof typeof OWNERS;
 

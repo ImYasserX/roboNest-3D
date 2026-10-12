@@ -3,20 +3,24 @@ import { getLocale, getTranslations } from "next-intl/server";
 import type { CustomerOrderView } from "@/server/services/orders";
 import { DEPOSIT_STAGE_STATUSES, ORDER_PROGRESS } from "@/lib/order-status";
 import type { OrderStatus } from "@/lib/domain";
-import { DepositForm, OnlineDepositPanel, type DepositMethodInfo, type OnlinePaymentInfo } from "./deposit-panel";
+import { paymentDue, paymentWhatsappText } from "@/lib/payment-due";
 import { formatIQD } from "@/lib/money";
 import { formatDate, mediaUrl, pick, pickText } from "@/lib/localize";
-import { formatIraqiPhone, whatsappLink } from "@/lib/phone";
+import { formatIraqiPhone } from "@/lib/phone";
+import { BUSINESS, businessWhatsappUrl } from "@/lib/business";
 import { Link } from "@/i18n/navigation";
-import { ButtonLink, buttonClass } from "@/components/ui/button";
+import { buttonClass } from "@/components/ui/button";
 import { CheckIcon, CubeIcon, WhatsappIcon } from "@/components/ui/icons";
 import { Alert, Badge, Card } from "@/components/ui/misc";
 import { cn } from "@/components/ui/cn";
 
 const OFF_TRACK = ["CANCELLED", "FAILED_DELIVERY", "RETURN_REQUESTED", "RETURNED"];
 
-export async function OrderView({ order, whatsapp, justPlaced, token, depositMethods, online }: { order: CustomerOrderView; whatsapp: string; justPlaced?: boolean; token: string | null; depositMethods: DepositMethodInfo[]; online: { available: boolean; payment: OnlinePaymentInfo } }) {
-  const [t, ts, tco, tcart, locale] = await Promise.all([getTranslations("order"), getTranslations("status"), getTranslations("checkout"), getTranslations("cart"), getLocale()]);
+/** Optional transfer details configured in admin → Payments (shown with the WhatsApp step). */
+export type PaymentMethodInfo = { code: string; instructions: string };
+
+export async function OrderView({ order, justPlaced, paymentMethods }: { order: CustomerOrderView; justPlaced?: boolean; paymentMethods: PaymentMethodInfo[] }) {
+  const [t, ts, tco, tcart, tn, locale] = await Promise.all([getTranslations("order"), getTranslations("status"), getTranslations("checkout"), getTranslations("cart"), getTranslations("nav"), getLocale()]);
   const baseSteps: readonly OrderStatus[] = order.hasPhysical ? ORDER_PROGRESS : ["PENDING", "CONFIRMED", "DELIVERED"];
   // Deposit orders replace the PENDING step with the three deposit steps.
   const steps: readonly OrderStatus[] = order.depositRequired ? [...DEPOSIT_STAGE_STATUSES, ...baseSteps.filter((s) => s !== "PENDING")] : baseSteps;
@@ -49,30 +53,7 @@ export async function OrderView({ order, whatsapp, justPlaced, token, depositMet
         </div>
       </div>
 
-      {order.depositRequired ? (
-        <section aria-labelledby="deposit-title" className="space-y-3 rounded-xl border border-warning/40 bg-surface p-5">
-          <h2 id="deposit-title" className="font-display text-xl font-semibold">
-            {t("deposit.title")}
-          </h2>
-          <p className="text-sm text-muted">{t("deposit.why", { amount: formatIQD(order.depositAmount, locale) })}</p>
-          {order.status === "AWAITING_DEPOSIT" ? (
-            online.available || depositMethods.length > 0 ? (
-              <div className="space-y-4">
-                {online.available ? <OnlineDepositPanel orderNumber={order.orderNumber} token={token} amount={order.depositAmount} payment={online.payment} /> : null}
-                {depositMethods.length > 0 ? <DepositForm orderNumber={order.orderNumber} token={token} amount={order.depositAmount} methods={depositMethods} /> : null}
-              </div>
-            ) : (
-              <Alert tone="warning">{t("deposit.noMethods")}</Alert>
-            )
-          ) : order.depositStatus === "SUBMITTED" ? (
-            <Alert tone="info">
-              {t("deposit.underReview", { method: order.depositMethod ? ts(`depositMethod.${order.depositMethod}`) : "", reference: order.depositReference ?? "" })}
-            </Alert>
-          ) : order.depositStatus === "VERIFIED" ? (
-            <Alert tone="success">{t("deposit.verified", { amount: formatIQD(order.depositAmount, locale) })}</Alert>
-          ) : null}
-        </section>
-      ) : null}
+      <PaymentStep order={order} methods={paymentMethods} />
 
       <section aria-labelledby="progress-title" className="space-y-4">
         <h2 id="progress-title" className="font-display text-xl font-semibold">
@@ -231,18 +212,97 @@ export async function OrderView({ order, whatsapp, justPlaced, token, depositMet
           ) : null}
           <Card className="space-y-3 p-5 text-sm">
             <p className="font-medium">{t("needHelp")}</p>
-            {whatsapp ? (
-              <a href={whatsappLink(whatsapp, t("whatsappMessage", { number: order.orderNumber }))} target="_blank" rel="noopener noreferrer" className={buttonClass("secondary", "md", "w-full")}>
-                <WhatsappIcon size={18} /> {t("helpWhatsapp")}
-              </a>
-            ) : (
-              <ButtonLink href="/contact" variant="secondary" className="w-full">
-                {t("helpWhatsapp")}
-              </ButtonLink>
-            )}
+            <a
+              href={businessWhatsappUrl(t("whatsappMessage", { number: order.orderNumber }))}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={tn("whatsappChat", { number: BUSINESS.whatsapp.display })}
+              className={buttonClass("secondary", "md", "w-full")}
+            >
+              <WhatsappIcon size={18} /> {t("helpWhatsapp")}
+            </a>
           </Card>
         </aside>
       </div>
     </div>
+  );
+}
+
+/**
+ * What to pay now and how: the amount comes from the order row (lib/payment-due),
+ * and the WhatsApp button only opens a chat. Nothing on this page can mark a
+ * payment as received; an Owner verifies it in the admin.
+ */
+async function PaymentStep({ order, methods }: { order: CustomerOrderView; methods: PaymentMethodInfo[] }) {
+  const [t, ts, locale] = await Promise.all([getTranslations("order.payment"), getTranslations("status"), getLocale()]);
+  const due = paymentDue(order);
+  const depositDone = order.depositRequired && order.depositStatus === "VERIFIED";
+  if (!due) {
+    if (!order.depositRequired && order.paymentStatus !== "PAID") return null;
+    return (
+      <section aria-labelledby="payment-title" className="space-y-2 rounded-xl border border-success/40 bg-success-soft p-5">
+        <h2 id="payment-title" className="font-display text-xl font-semibold">{t("title")}</h2>
+        {depositDone ? <p>{t("depositVerified", { amount: formatIQD(order.depositAmount, locale) })}</p> : null}
+        {order.paymentStatus === "PAID" ? <p>{t("paidVerified")}</p> : null}
+        {order.paymentStatus === "REFUNDED" ? <p>{t("refunded")}</p> : null}
+      </section>
+    );
+  }
+  const href = businessWhatsappUrl(paymentWhatsappText(locale, order.orderNumber, due));
+  const purpose = due.kind === "DEPOSIT" ? t("purposeDeposit") : depositDone ? t("purposeBalance") : t("purposeFull");
+  return (
+    <section aria-labelledby="payment-title" className="space-y-4 rounded-xl border border-warning/40 bg-surface p-5" data-testid="payment-step">
+      <div className="space-y-1">
+        <h2 id="payment-title" className="font-display text-xl font-semibold">{due.kind === "DEPOSIT" ? t("titleDeposit") : t("title")}</h2>
+        {due.kind === "DEPOSIT" ? <p className="text-sm text-muted">{t("whyDeposit")}</p> : null}
+      </div>
+      <dl className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-lg border border-border bg-bg p-3">
+          <dt className="text-xs text-muted">{t("reference")}</dt>
+          <dd className="ltr-nums font-mono font-semibold" dir="ltr">{order.orderNumber}</dd>
+        </div>
+        <div className="rounded-lg border border-border bg-bg p-3">
+          <dt className="text-xs text-muted">{t("amountDue")}</dt>
+          <dd className="ltr-nums text-lg font-semibold" data-testid="amount-due">{formatIQD(due.amount, locale)}</dd>
+        </div>
+        <div className="rounded-lg border border-border bg-bg p-3">
+          <dt className="text-xs text-muted">{t("purpose")}</dt>
+          <dd className="font-semibold">{purpose}</dd>
+        </div>
+      </dl>
+      {depositDone ? <Alert tone="success">{t("depositVerified", { amount: formatIQD(order.depositAmount, locale) })}</Alert> : null}
+      {order.paymentStatus === "DISPUTED" ? <Alert tone="warning">{t("disputed")}</Alert> : null}
+      {order.depositStatus === "SUBMITTED" ? (
+        <Alert tone="info">{t("legacySubmitted", { method: order.depositMethod ? ts(`depositMethod.${order.depositMethod}`) : "", reference: order.depositReference ?? "" })}</Alert>
+      ) : null}
+      {due.channel === "ON_DELIVERY" ? (
+        <p className="text-sm">{t("onDelivery", { amount: formatIQD(due.amount, locale) })}</p>
+      ) : (
+        <p className="text-sm">{t("howTo")}</p>
+      )}
+      <div className="flex flex-wrap items-center gap-3">
+        <a href={href} target="_blank" rel="noopener noreferrer" className={buttonClass(due.channel === "ON_DELIVERY" ? "secondary" : "primary", "lg")} data-testid="whatsapp-payment">
+          <WhatsappIcon size={20} />
+          {due.channel === "ON_DELIVERY" ? t("whatsappOptional") : t("whatsapp")}
+        </a>
+        <span className="text-sm text-muted">
+          {t("orCall")} <a href={`tel:${BUSINESS.phones[0].tel}`} className="ltr-nums underline" dir="ltr">{BUSINESS.phones[0].display}</a>
+        </span>
+      </div>
+      {methods.length > 0 && due.channel === "WHATSAPP" ? (
+        <details className="rounded-lg border border-border p-3">
+          <summary className="cursor-pointer text-sm font-semibold">{t("transferDetails")}</summary>
+          <ul className="mt-2 space-y-2">
+            {methods.map((m) => (
+              <li key={m.code}>
+                <p className="text-sm font-semibold">{ts(`depositMethod.${m.code}`)}</p>
+                <p className="whitespace-pre-line text-sm text-muted">{m.instructions}</p>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+      <p className="text-xs text-muted">{t("notReceivedUntilVerified")}</p>
+    </section>
   );
 }

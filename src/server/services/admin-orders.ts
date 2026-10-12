@@ -2,7 +2,7 @@ import { and, asc, desc, eq, gt, or, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import { runBatch, type BatchStatement, type Database } from "@/server/db/client";
 import { discounts, orderItems, orders, orderStatusHistory, products, uploads } from "@/server/db/schema";
-import { ORDER_STATUSES, PAYMENT_STATUSES, type OrderStatus, type PaymentStatus } from "@/lib/domain";
+import { ORDER_STATUSES, PAYMENT_STATUSES, type OrderStatus } from "@/lib/domain";
 import { canTransitionOrder } from "@/lib/order-status";
 import { normalizeIraqiPhone } from "@/lib/phone";
 import { escapeLike } from "@/lib/search-normalize";
@@ -87,8 +87,8 @@ export type StatusChangeError = "not_found" | "invalid_transition" | "conflict" 
 /**
  * Moves an order to a new status. Uses a compare-and-set on the current
  * status so two admins cannot apply conflicting transitions, then records
- * history, audit, and side effects (restock on cancel/return, COD collected
- * on delivery).
+ * history, audit, and side effects (restock on cancel/return). It never
+ * changes the payment status.
  */
 export async function changeOrderStatus(
   db: Database,
@@ -110,11 +110,10 @@ export async function changeOrderStatus(
 
   const patch: Partial<typeof orders.$inferInsert> = { status: input.to };
   if (input.to === "CONFIRMED" && !order.confirmedAt) patch.confirmedAt = now;
-  if (input.to === "DELIVERED") {
-    patch.deliveredAt = now;
-    // Cash on delivery: the courier collects payment at handover.
-    if (order.paymentStatus === "PENDING") patch.paymentStatus = "PAID";
-  }
+  // Delivery never marks the order paid: cash collected by the courier is
+  // confirmed by an Owner in the payment verification workflow
+  // (services/payment-verification.ts), like every other payment.
+  if (input.to === "DELIVERED") patch.deliveredAt = now;
   if (input.to === "CANCELLED") patch.cancelledAt = now;
 
   const claimed = await db
@@ -140,7 +139,7 @@ export async function changeOrderStatus(
       action: "order.status.changed",
       targetType: "order",
       targetId: orderId,
-      metadata: { orderNumber: order.orderNumber, from: order.status, to: input.to, paymentStatus: patch.paymentStatus },
+      metadata: { orderNumber: order.orderNumber, from: order.status, to: input.to },
     }),
   ];
 
@@ -170,22 +169,11 @@ export async function changeOrderStatus(
     await runBatch(db, sideEffects);
   } catch (error) {
     // Compensate so the order is not left in a state without history.
-    await db.update(orders).set({ status: order.status, paymentStatus: order.paymentStatus, deliveredAt: order.deliveredAt, cancelledAt: order.cancelledAt, confirmedAt: order.confirmedAt }).where(eq(orders.id, orderId));
+    await db.update(orders).set({ status: order.status, deliveredAt: order.deliveredAt, cancelledAt: order.cancelledAt, confirmedAt: order.confirmedAt }).where(eq(orders.id, orderId));
     console.error("changeOrderStatus side effects failed", { orderId, reason: String(error).slice(0, 200) });
     return { ok: false, error: "failed" };
   }
   return { ok: true };
-}
-
-export async function changePaymentStatus(db: Database, orderId: string, to: PaymentStatus, actor: AuditActor) {
-  const [order] = await db.select({ paymentStatus: orders.paymentStatus, orderNumber: orders.orderNumber }).from(orders).where(eq(orders.id, orderId)).limit(1);
-  if (!order) return { ok: false as const, error: "not_found" as const };
-  if (order.paymentStatus === to) return { ok: true as const };
-  await runBatch(db, [
-    db.update(orders).set({ paymentStatus: to }).where(eq(orders.id, orderId)),
-    auditInsert(db, actor, { action: "order.payment.changed", targetType: "order", targetId: orderId, metadata: { orderNumber: order.orderNumber, from: order.paymentStatus, to } }),
-  ]);
-  return { ok: true as const };
 }
 
 export async function updateOrderAdminNotes(db: Database, orderId: string, notes: string, actor: AuditActor) {

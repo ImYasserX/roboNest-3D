@@ -7,6 +7,8 @@ import {
   digitalFiles,
   orderItems,
   productImages,
+  productTurntableFrames,
+  previewModels,
   productOptions,
   productOptionValues,
   productRelations,
@@ -135,7 +137,7 @@ function fieldErrors(error: z.ZodError): FieldErrors {
   return out;
 }
 
-function buildSearchText(input: ProductInput, categoryNames: string[]) {
+export function buildSearchText(input: Pick<ProductInput, "nameEn" | "nameAr" | "summaryEn" | "summaryAr" | "tags" | "materials" | "colors" | "descriptionEn" | "descriptionAr">, categoryNames: string[]) {
   return normalizeSearchText(
     [
       input.nameEn,
@@ -152,7 +154,7 @@ function buildSearchText(input: ProductInput, categoryNames: string[]) {
   );
 }
 
-async function categoryNamesFor(db: Database, categoryId: string) {
+export async function categoryNamesFor(db: Database, categoryId: string) {
   const [cat] = await db.select().from(categories).where(eq(categories.id, categoryId)).limit(1);
   if (!cat) return null;
   const names = [cat.nameEn, cat.nameAr];
@@ -311,6 +313,8 @@ export async function deleteProduct(db: Database, id: string, actor: AuditActor)
   if (ordered > 0) return { ok: false as const, error: "has_orders" as const };
   const images = await db.select({ key: productImages.r2Key }).from(productImages).where(eq(productImages.productId, id));
   const files = await db.select({ key: digitalFiles.r2Key }).from(digitalFiles).where(eq(digitalFiles.productId, id));
+  const frames = await db.select({ key: productTurntableFrames.r2Key }).from(productTurntableFrames).where(eq(productTurntableFrames.productId, id));
+  const proxies = await db.select({ key: previewModels.r2Key }).from(previewModels).where(eq(previewModels.productId, id));
   await runBatch(db, [
     db.delete(digitalFiles).where(eq(digitalFiles.productId, id)),
     db.delete(products).where(eq(products.id, id)),
@@ -318,7 +322,7 @@ export async function deleteProduct(db: Database, id: string, actor: AuditActor)
   ]);
   return {
     ok: true as const,
-    mediaKeys: [...images.map((i) => i.key), ...(product.previewModelKey ? [product.previewModelKey] : [])],
+    mediaKeys: [...images.map((i) => i.key), ...frames.map((f) => f.key), ...proxies.map((p) => p.key), ...(product.previewModelKey ? [product.previewModelKey] : [])],
     privateKeys: files.map((f) => f.key),
   };
 }
@@ -327,28 +331,50 @@ export async function deleteProduct(db: Database, id: string, actor: AuditActor)
 // Listing and loading for the admin UI
 // ---------------------------------------------------------------------------
 
-export async function listProductsAdmin(db: Database, raw: Record<string, string | undefined>) {
-  const query = z
-    .object({
-      q: z.string().trim().max(80).optional().catch(undefined),
-      status: z.enum(PRODUCT_STATUSES).optional().catch(undefined),
-      type: z.enum(PRODUCT_TYPES).optional().catch(undefined),
-      availability: z.enum(AVAILABILITY).optional().catch(undefined),
-      sort: z.enum(["updated", "name", "price_asc", "price_desc", "stock"]).optional().catch(undefined),
-      page: z.preprocess((v) => Number(v ?? 1), z.number().int().min(1).max(10_000)).catch(1),
-    })
-    .parse(raw);
+export const productListQuerySchema = z.object({
+  q: z.string().trim().max(80).optional().catch(undefined),
+  status: z.enum(PRODUCT_STATUSES).optional().catch(undefined),
+  type: z.enum(PRODUCT_TYPES).optional().catch(undefined),
+  availability: z.enum(AVAILABILITY).optional().catch(undefined),
+  category: z.string().uuid().optional().catch(undefined),
+  material: z.string().trim().max(40).optional().catch(undefined),
+  featured: z.enum(["1", "0"]).optional().catch(undefined),
+  sort: z.enum(["updated", "created", "name", "price_asc", "price_desc", "stock", "status"]).optional().catch(undefined),
+  page: z.preprocess((v) => Number(v ?? 1), z.number().int().min(1).max(10_000)).catch(1),
+});
+export type ProductListQuery = z.infer<typeof productListQuerySchema>;
+export const PRODUCT_PAGE_SIZE = 25;
+
+/** WHERE clause for the admin product filters (shared by the list and "select all matching"). */
+export function productListCondition(query: ProductListQuery): SQL | undefined {
   const where: SQL[] = [];
   if (query.status) where.push(eq(products.status, query.status));
   if (query.type) where.push(eq(products.productType, query.type));
   if (query.availability) where.push(eq(products.availability, query.availability));
+  if (query.featured) where.push(eq(products.isFeatured, query.featured === "1"));
+  if (query.category) {
+    // A parent category also matches its sub-categories.
+    where.push(sql`(${products.categoryId} = ${query.category} OR ${products.categoryId} IN (SELECT ${categories.id} FROM ${categories} WHERE ${categories.parentId} = ${query.category}))`);
+  }
+  if (query.material) {
+    where.push(sql`EXISTS (SELECT 1 FROM json_each(${products.materials}) m WHERE lower(m.value) = ${query.material.toLowerCase()})`);
+  }
   if (query.q) {
     const pattern = `%${escapeLike(normalizeSearchText(query.q))}%`;
     where.push(sql`(${products.searchText} LIKE ${pattern} ESCAPE '\\' OR ${products.slug} LIKE ${`%${escapeLike(query.q.toLowerCase())}%`} ESCAPE '\\')`);
   }
-  const condition = where.length ? and(...where) : undefined;
+  return where.length ? and(...where) : undefined;
+}
+
+export async function listProductsAdmin(db: Database, raw: Record<string, string | undefined>) {
+  const query = productListQuerySchema.parse(raw);
+  const condition = productListCondition(query);
   const orderBy =
-    query.sort === "name"
+    query.sort === "created"
+      ? desc(products.createdAt)
+      : query.sort === "status"
+        ? asc(products.status)
+        : query.sort === "name"
       ? asc(products.nameEn)
       : query.sort === "price_asc"
         ? asc(products.basePrice)
@@ -357,7 +383,7 @@ export async function listProductsAdmin(db: Database, raw: Record<string, string
           : query.sort === "stock"
             ? asc(products.stockQuantity)
             : desc(products.updatedAt);
-  const pageSize = 25;
+  const pageSize = PRODUCT_PAGE_SIZE;
   const total = await db.$count(products, condition);
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
   const page = Math.min(query.page, pageCount);
@@ -373,7 +399,10 @@ export async function listProductsAdmin(db: Database, raw: Record<string, string
       stockQuantity: products.stockQuantity,
       basePrice: products.basePrice,
       salePrice: products.salePrice,
+      isFeatured: products.isFeatured,
+      materials: products.materials,
       updatedAt: products.updatedAt,
+      createdAt: products.createdAt,
       categoryNameEn: categories.nameEn,
       categoryNameAr: categories.nameAr,
     })
@@ -390,7 +419,7 @@ export async function getProductForEdit(db: Database, id: string) {
   if (!z.string().uuid().safeParse(id).success) return null;
   const [product] = await db.select().from(products).where(eq(products.id, id)).limit(1);
   if (!product) return null;
-  const [images, options, files, related] = await Promise.all([
+  const [images, options, files, related, turntableFrames] = await Promise.all([
     db.select().from(productImages).where(eq(productImages.productId, id)).orderBy(asc(productImages.sortOrder), asc(productImages.createdAt)),
     db.select().from(productOptions).where(eq(productOptions.productId, id)).orderBy(asc(productOptions.sortOrder), asc(productOptions.createdAt)),
     db.select().from(digitalFiles).where(eq(digitalFiles.productId, id)).orderBy(desc(digitalFiles.createdAt)),
@@ -400,6 +429,7 @@ export async function getProductForEdit(db: Database, id: string) {
       .innerJoin(products, eq(products.id, productRelations.relatedProductId))
       .where(eq(productRelations.productId, id))
       .orderBy(asc(productRelations.sortOrder)),
+    db.$count(productTurntableFrames, eq(productTurntableFrames.productId, id)),
   ]);
   const values = options.length
     ? await db.select().from(productOptionValues).where(inArray(productOptionValues.optionId, options.map((o) => o.id))).orderBy(asc(productOptionValues.sortOrder))
@@ -411,6 +441,7 @@ export async function getProductForEdit(db: Database, id: string) {
     files,
     relatedSlugs: related.map((r) => r.slug),
     acceptsDigitalFiles: typeHasDigital(product.productType),
+    turntableFrames,
   };
 }
 
@@ -559,14 +590,14 @@ export async function deleteProductImage(db: Database, productId: string, imageI
   return { ok: true as const, key: img.r2Key };
 }
 
-export async function setPreviewModel(db: Database, productId: string, key: string | null, actor: AuditActor) {
-  const [current] = await db.select({ key: products.previewModelKey }).from(products).where(eq(products.id, productId)).limit(1);
-  if (!current) return { ok: false as const };
+/** Removes all turntable frames; returns their MEDIA keys (rendered images, not models) for deletion. */
+export async function clearTurntable(db: Database, productId: string, actor: AuditActor) {
+  const frames = await db.select({ key: productTurntableFrames.r2Key }).from(productTurntableFrames).where(eq(productTurntableFrames.productId, productId));
   await runBatch(db, [
-    db.update(products).set({ previewModelKey: key }).where(eq(products.id, productId)),
-    auditInsert(db, actor, { action: key ? "product.preview.uploaded" : "product.preview.removed", targetType: "product", targetId: productId }),
+    db.delete(productTurntableFrames).where(eq(productTurntableFrames.productId, productId)),
+    auditInsert(db, actor, { action: "product.turntable.cleared", targetType: "product", targetId: productId, metadata: { frames: frames.length } }),
   ]);
-  return { ok: true as const, previousKey: current.key };
+  return { ok: true as const, keys: frames.map((f) => f.key) };
 }
 
 export async function addDigitalFile(
@@ -628,4 +659,10 @@ export async function listAllDigitalFiles(db: Database) {
 export async function productExists(db: Database, id: string) {
   if (!z.string().uuid().safeParse(id).success) return false;
   return (await db.$count(products, eq(products.id, id))) > 0;
+}
+
+/** Distinct materials used in the catalog (for the admin material filter). */
+export async function listProductMaterials(db: Database) {
+  const rows = await db.all<{ m: string }>(sql`SELECT DISTINCT m.value AS m FROM ${products}, json_each(${products.materials}) m ORDER BY lower(m.value) LIMIT 100`);
+  return rows.map((r) => r.m).filter((m) => typeof m === "string" && m.trim());
 }

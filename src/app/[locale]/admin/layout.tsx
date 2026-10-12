@@ -7,11 +7,8 @@ export async function generateMetadata({ params }: LayoutProps<"/[locale]/admin"
   return { title: { default: t("title"), template: `%s · ${t("title")}` }, robots: { index: false, follow: false } };
 }
 
-// The admin area uses the light theme tokens for dense data work.
+// The admin follows the site theme (dark charcoal by default, light on
+// request); .admin-shell (globals.css) tunes the tokens for data-heavy work.
 export default function AdminRootLayout({ children }: LayoutProps<"/[locale]/admin">) {
-  return (
-    <div data-theme="light" className="min-h-dvh bg-bg text-text">
-      {children}
-    </div>
-  );
+  return <div className="admin-shell min-h-dvh bg-[var(--rn-admin-canvas)] text-text">{children}</div>;
 }

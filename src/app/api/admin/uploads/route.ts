@@ -4,14 +4,20 @@ import { getDb } from "@/server/db/client";
 import { products } from "@/server/db/schema";
 import { getEnv } from "@/server/env";
 import { getRequestMeta } from "@/server/request-meta";
-import { addDigitalFile, addProductImage, setPreviewModel } from "@/server/services/product-admin";
+import { addDigitalFile, addProductImage } from "@/server/services/product-admin";
+import { fingerprintDigitalFile, uploadPreviewCandidate } from "@/server/services/previews";
 import { consumeRateLimit } from "@/server/services/rate-limit";
+import { UPLOAD_RULES } from "@/server/storage/file-rules";
 import { storeUploadFromRequest } from "@/server/storage/upload";
 import { typeHasDigital } from "@/lib/domain";
 
 // Admin media uploads. Raw file body; metadata in the query string.
-//  PRODUCT_IMAGE / PREVIEW_MODEL → public MEDIA bucket (served via /media)
-//  DIGITAL_FILE                  → PRIVATE_FILES bucket (download route only)
+//  PRODUCT_IMAGE → MEDIA bucket (raster images only, served via /media)
+//  PREVIEW_MODEL → MEDIA under preview-proxies/ as a PENDING_REVIEW proxy,
+//                  only if the bytes pass the proxy validator and differ from
+//                  every paid file; served only after approval (/api/previews)
+//  DIGITAL_FILE  → PRIVATE_FILES bucket (download route only)
+// Turntable frame uploads were retired with the interactive viewer.
 const PERMISSION = { PRODUCT_IMAGE: "products.edit", PREVIEW_MODEL: "products.edit", DIGITAL_FILE: "digitalFiles.manage" } as const;
 
 export async function POST(request: Request) {
@@ -38,19 +44,31 @@ export async function POST(request: Request) {
   if (purpose === "DIGITAL_FILE" && !typeHasDigital(product.productType)) return Response.json({ error: "not_digital" }, { status: 400 });
 
   const env = await getEnv();
+  const actor = { adminId: admin.id, label: admin.username, ipHash };
+
+  if (purpose === "PREVIEW_MODEL") {
+    // Small file: read it whole and validate the actual bytes before storing.
+    const length = Number(request.headers.get("content-length"));
+    if (!Number.isSafeInteger(length) || length <= 0) return Response.json({ error: "missing_length" }, { status: 415 });
+    if (length > UPLOAD_RULES.PREVIEW_MODEL.maxBytes) return Response.json({ error: "too_large" }, { status: 413 });
+    const bytes = new Uint8Array(await request.arrayBuffer());
+    if (bytes.byteLength !== length) return Response.json({ error: "upload_failed" }, { status: 400 });
+    const res = await uploadPreviewCandidate(db, env, productId, bytes, actor);
+    if (!res.ok) return Response.json({ error: res.error, reasons: res.reasons }, { status: 422 });
+    return Response.json({ ok: true }, { status: 201 });
+  }
+
   const bucket = purpose === "DIGITAL_FILE" ? env.PRIVATE_FILES : env.MEDIA;
-  const prefix = purpose === "PRODUCT_IMAGE" ? "products" : purpose === "PREVIEW_MODEL" ? "previews" : "digital";
+  const prefix = purpose === "PRODUCT_IMAGE" ? "products" : "digital";
   const stored = await storeUploadFromRequest(request, bucket, purpose, filename, prefix);
   if (!stored.ok) return Response.json({ error: stored.error }, { status: stored.error === "too_large" ? 413 : 415 });
 
-  const actor = { adminId: admin.id, label: admin.username, ipHash };
   if (purpose === "PRODUCT_IMAGE") {
     await addProductImage(db, productId, { key: stored.file.key, width: stored.file.width, height: stored.file.height, filename: stored.file.filename }, actor);
-  } else if (purpose === "PREVIEW_MODEL") {
-    const res = await setPreviewModel(db, productId, stored.file.key, actor);
-    if (res.ok && res.previousKey) await env.MEDIA.delete(res.previousKey);
   } else {
-    await addDigitalFile(db, productId, stored.file, actor);
+    const fileId = await addDigitalFile(db, productId, stored.file, actor);
+    // Fingerprint now (bounded size) so a copy of it can never pass as a preview.
+    await fingerprintDigitalFile(db, env.PRIVATE_FILES, fileId).catch(() => null);
   }
   return Response.json({ ok: true }, { status: 201 });
 }

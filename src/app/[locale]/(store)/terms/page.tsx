@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { setRequestLocale } from "next-intl/server";
-import { ContentPage, contentMetadata } from "@/components/layout/content-page";
+import { contentMetadata } from "@/components/layout/content-page";
+import { PolicyPage } from "@/components/layout/policy-page";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/terms">): Promise<Metadata> {
   const { locale } = await params;
@@ -10,5 +11,5 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/terms">)
 export default async function TermsPage({ params }: PageProps<"/[locale]/terms">) {
   const { locale } = await params;
   setRequestLocale(locale);
-  return <ContentPage pageKey="terms" />;
+  return <PolicyPage pageKey="terms" />;
 }

@@ -29,6 +29,11 @@ import {
   PAYMENT_STATUSES,
   PRODUCT_STATUSES,
   PRODUCT_TYPES,
+  PREVIEW_SOURCES,
+  PREVIEW_STATUSES,
+  PAYMENT_CHANNELS,
+  PAYMENT_VERIFICATION_ACTIONS,
+  PAYMENT_VERIFICATION_KINDS,
 } from "@/lib/domain";
 
 // Conventions
@@ -291,7 +296,12 @@ export const products = sqliteTable(
     seoTitleAr: text("seo_title_ar"),
     seoDescriptionEn: text("seo_description_en"),
     seoDescriptionAr: text("seo_description_ar"),
-    /** R2 key (MEDIA bucket) of a GLB used for the in-browser 3D preview. */
+    /**
+     * LEGACY: R2 key of a GLB that used to be streamed to <model-viewer>.
+     * Never served (it can carry the full paid geometry); kept only so
+     * existing objects are not deleted without approval. An admin can audit
+     * it; public previews come only from approved previewModels rows.
+     */
     previewModelKey: text("preview_model_key"),
     status: text("status", { enum: PRODUCT_STATUSES }).notNull().default("DRAFT"),
     isFeatured: bool("is_featured").notNull().default(false),
@@ -330,6 +340,27 @@ export const productImages = sqliteTable(
     createdAt: createdAt(),
   },
   (t) => [index("product_images_product_idx").on(t.productId, t.sortOrder)],
+);
+
+/**
+ * LEGACY (migration 0003): turntable images. No longer shown; rows and
+ * objects are kept until an owner approves deleting them.
+ */
+export const productTurntableFrames = sqliteTable(
+  "product_turntable_frames",
+  {
+    id: id(),
+    productId: text("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    /** R2 key in MEDIA under turntables/…; a raster image (webp/png/jpg). */
+    r2Key: text("r2_key").notNull(),
+    frameIndex: integer("frame_index").notNull(),
+    width: integer("width"),
+    height: integer("height"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("turntable_frames_product_idx").on(t.productId, t.frameIndex)],
 );
 
 export const productOptions = sqliteTable(
@@ -413,9 +444,56 @@ export const digitalFiles = sqliteTable(
     sizeBytes: integer("size_bytes").notNull(),
     isActive: bool("is_active").notNull().default(true),
     uploadedBy: text("uploaded_by").references(() => adminUsers.id, { onDelete: "set null" }),
+    /**
+     * Fingerprint of the original (hex SHA-256 of the bytes, and its triangle
+     * count when the format could be parsed). Filled at upload, or lazily when
+     * a preview is generated or checked; NULL for older rows until then. Used
+     * to refuse a "preview" that is a copy of a paid file.
+     */
+    sha256: text("sha256"),
+    triangleCount: integer("triangle_count"),
     createdAt: createdAt(),
   },
-  (t) => [index("digital_files_product_idx").on(t.productId)],
+  (t) => [index("digital_files_product_idx").on(t.productId), index("digital_files_sha_idx").on(t.sha256)],
+);
+
+/**
+ * Interactive 3D preview proxies: reduced, normalized meshes (see
+ * server/preview/proxy.ts) stored in MEDIA under preview-proxies/… and served
+ * only by /api/previews/[id] when status is APPROVED and the product is
+ * published. They are NOT the paid files (those stay in PRIVATE_FILES and are
+ * tracked in digital_files), and /media never serves this prefix.
+ */
+export const previewModels = sqliteTable(
+  "preview_models",
+  {
+    id: id(),
+    productId: text("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    r2Key: text("r2_key").notNull(),
+    status: text("status", { enum: PREVIEW_STATUSES }).notNull().default("PENDING_REVIEW"),
+    source: text("source", { enum: PREVIEW_SOURCES }).notNull(),
+    /** The paid file it was generated from (GENERATED only). */
+    sourceDigitalFileId: text("source_digital_file_id").references(() => digitalFiles.id, { onDelete: "set null" }),
+    sha256: text("sha256").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    triangleCount: integer("triangle_count").notNull(),
+    vertexCount: integer("vertex_count").notNull(),
+    sourceTriangleCount: integer("source_triangle_count"),
+    createdBy: text("created_by").references(() => adminUsers.id, { onDelete: "set null" }),
+    reviewedBy: text("reviewed_by").references(() => adminUsers.id, { onDelete: "set null" }),
+    reviewedAt: integer("reviewed_at", { mode: "timestamp_ms" }),
+    rejectReason: text("reject_reason"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("preview_models_product_idx").on(t.productId, t.createdAt),
+    // At most one approved preview per product.
+    uniqueIndex("preview_models_one_approved_uq").on(t.productId).where(sql`${t.status} = 'APPROVED'`),
+    check("preview_models_status_ck", sql`${t.status} IN ('PENDING_REVIEW','APPROVED','REJECTED')`),
+    check("preview_models_review_ck", sql`${t.status} = 'PENDING_REVIEW' OR ${t.reviewedAt} IS NOT NULL`),
+  ],
 );
 
 // ---------------------------------------------------------------------------
@@ -846,6 +924,40 @@ export const depositPayments = sqliteTable(
  * delivery happens afterwards. `dedupeKey` makes creation idempotent; retries
  * only send to recipients not yet in `deliveredTo`.
  */
+/**
+ * Manual payment verification ledger (migration 0005). Every decision an
+ * authorized admin makes about money (confirm, reject, dispute, reopen,
+ * refund recorded) is one row; rows are never updated (trigger). Triggers
+ * also make orders.payment_status = 'PAID' and deposit_status = 'VERIFIED'
+ * impossible without a matching CONFIRMED row, and allow at most one
+ * CONFIRMED row per order and kind.
+ */
+export const paymentVerifications = sqliteTable(
+  "payment_verifications",
+  {
+    id: id(),
+    orderId: text("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "restrict" }),
+    kind: text("kind", { enum: PAYMENT_VERIFICATION_KINDS }).notNull(),
+    action: text("action", { enum: PAYMENT_VERIFICATION_ACTIONS }).notNull(),
+    /** IQD, taken from the order row at decision time (never from the request). */
+    amount: integer("amount").notNull(),
+    currency: text("currency", { enum: ["IQD"] }).notNull().default("IQD"),
+    channel: text("channel", { enum: PAYMENT_CHANNELS }),
+    /** What the admin checked (e.g. "FIB transfer ref 1234 seen in account"), or the reason. */
+    note: text("note"),
+    adminId: text("admin_id").references(() => adminUsers.id, { onDelete: "set null" }),
+    adminLabel: text("admin_label").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("payment_verifications_order_idx").on(t.orderId, t.createdAt),
+    uniqueIndex("payment_verifications_one_confirmed_uq").on(t.orderId, t.kind).where(sql`${t.action} = 'CONFIRMED'`),
+    check("payment_verifications_amount_ck", sql`${t.amount} >= 0 AND (${t.action} <> 'CONFIRMED' OR ${t.amount} > 0)`),
+  ],
+);
+
 export const notificationEvents = sqliteTable(
   "notification_events",
   {

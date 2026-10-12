@@ -171,7 +171,7 @@ export async function acceptQuote(
   db: Database,
   requestId: string,
   raw: unknown,
-  ctx: { appSecret: string; onlineDepositAvailable?: boolean },
+  ctx: { appSecret: string },
 ) {
   const parsed = acceptSchema.safeParse(raw);
   if (!parsed.success) return { ok: false as const, error: "invalid_input" as const };
@@ -187,7 +187,7 @@ export async function acceptQuote(
   if (!quote.ok) return { ok: false as const, error: quote.error };
 
   const subtotal = request.quotedPrice;
-  const payment = await initialPaymentState(db, { subtotal, discountTotal: 0, total: subtotal + quote.fee }, ctx.onlineDepositAvailable ?? false);
+  const payment = initialPaymentState({ subtotal, discountTotal: 0, total: subtotal + quote.fee });
   if (!payment.ok) return { ok: false as const, error: payment.error };
   const orderId = crypto.randomUUID();
   const orderNumber = generateOrderNumber("RN");

@@ -82,7 +82,7 @@ export default async function NotificationsPage({ params }: PageProps<"/[locale]
               </div>
               <div className="flex items-center gap-2">
                 <Badge tone={e.status === "SENT" ? "success" : e.status === "FAILED" ? "danger" : "warning"}>{t(`status.${e.status}`)}</Badge>
-                {e.status !== "SENT" ? (
+                {e.status !== "SENT" && e.status !== "SUPPRESSED" ? (
                   <ActionForm action={retryNotificationAction} errorNamespace="admin.notifications" successText={t("testSent")} className="contents">
                     <input type="hidden" name="id" value={e.id} />
                     <SubmitButton size="sm" variant="secondary">{t("retry")}</SubmitButton>

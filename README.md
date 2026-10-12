@@ -1,6 +1,6 @@
 # RoboNest.3D
 
-Bilingual (Iraqi Arabic / English) e‑commerce platform for **RoboNest.3D**, the 3D‑printing workshop of RoboNest. RoboNest.3D designs and prints its own products: made‑to‑order prints, customizable products and downloadable 3D models, plus custom print jobs from customer files. Payment is cash on delivery, a flat 5,000 IQD delivery fee applies everywhere, and orders above 50,000 IQD need a manually verified deposit. (This is not the international RoboNest electronics store.)
+Bilingual (Iraqi Arabic / English) e‑commerce platform for **RoboNest.3D**, the 3D‑printing workshop of RoboNest. RoboNest.3D designs and prints its own products: made‑to‑order prints, customizable products and downloadable 3D models, plus custom print jobs from customer files. Payments are arranged with the team on WhatsApp (physical items can also be paid in cash on delivery) and count only after an Owner verifies them in the admin; a flat 5,000 IQD delivery fee applies everywhere, and orders above 50,000 IQD need a 30% deposit first ([docs/PAYMENTS.md](docs/PAYMENTS.md)). (This is not the international RoboNest electronics store.)
 
 - **Stack:** Next.js 16 (App Router, TypeScript), Tailwind CSS 4, next‑intl, Drizzle ORM, Zod.
 - **Runtime:** Cloudflare Workers via OpenNext, with Cloudflare D1 (SQLite) and R2 (object storage).
@@ -20,6 +20,8 @@ Bilingual (Iraqi Arabic / English) e‑commerce platform for **RoboNest.3D**, th
 
 ## Local development
 
+Full guide, local resource locations, the outbound kill switch and a repeatable smoke test: [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md). No domain or Cloudflare account is needed.
+
 ```bash
 npm install
 npm run setup            # creates .dev.vars with a random APP_SECRET, applies D1 migrations locally
@@ -28,8 +30,8 @@ npm run dev              # http://localhost:3000  → redirects to /ar (or /en b
 ```
 
 - Storefront: `/ar`, `/en`. Admin: `/ar/admin`, `/en/admin`.
-- The seed prints the passwords for `owner` (Super Admin) and `operations` (Operations). To choose them yourself, set `SEED_SUPER_ADMIN_PASSWORD` and `SEED_OPS_ADMIN_PASSWORD`. The Super Admin must enroll an authenticator app (TOTP) at first sign‑in.
-- `npm run db:seed -- --reset` wipes local D1/R2 and reseeds. Seed products are clearly marked samples; their images are rendered from procedural 3D meshes, and the GLB previews and STL downloads use the same geometry. The seed creates no orders, customers, or reviews.
+- The seed prints the passwords for the development accounts `dev-super` (Super Admin) and `dev-ops` (Operations). They are not the real owners. To choose them yourself, set `SEED_SUPER_ADMIN_PASSWORD` and `SEED_OPS_ADMIN_PASSWORD`. The Super Admin must enroll an authenticator app (TOTP) at first sign‑in.
+- `npm run db:seed -- --reset` wipes local D1/R2 and reseeds. Seed products are clearly marked samples; their images are rendered from procedural 3D meshes, the sample STL downloads use the same geometry, and the interactive previews are separate reduced proxies generated from it and approved by the seed. The seed creates no orders, customers, or reviews.
 - Discount code for local testing: `WELCOME10`.
 
 ### Running the production bundle locally
@@ -52,14 +54,15 @@ All variables are listed with comments in [`.env.example`](.env.example) (no rea
 |---|---|---|
 | `DB`, `MEDIA`, `PRIVATE_FILES`, `IMAGES` | bindings | D1 database and R2 buckets (`wrangler.jsonc`) |
 | `APP_SECRET` | secret, required | ≥ 32 chars. Encrypts admin TOTP secrets, derives order link tokens, HMACs WhatsApp OTP codes and IPs |
-| `SITE_URL` | var, required | Public https origin; also used for the FIB callback URL and admin links in Telegram |
+| `SITE_URL` | var, required | Public https origin; used for canonical URLs and admin links in Telegram |
 | `RESEND_API_KEY` | secret | Resend API key |
 | `CONTACT_FORM_EMAIL` | var | Contact-form recipient. Set to `contact@robonest.tech` in `wrangler.jsonc` |
 | `CONTACT_FROM_EMAIL` | secret/var | Separate sender on a Resend-verified domain, e.g. `RoboNest.3D <no-reply@robonest.tech>` |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_IDS` | secrets | Owner order alerts (both owners' chat ids, comma-separated) |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID` | secrets | SMS phone verification (default channel) |
 | `PHONE_VERIFICATION_PRIMARY`, `WHATSAPP_*` | secrets/vars | Optional WhatsApp OTP channel under evaluation ([docs/WHATSAPP_OTP.md](docs/WHATSAPP_OTP.md)) |
-| `FIB_ONLINE_DEPOSITS`, `FIB_BASE_URL`, `FIB_CLIENT_ID`, `FIB_CLIENT_SECRET` | secrets/vars | Online deposit payments with FIB; off until enabled ([docs/PAYMENTS.md](docs/PAYMENTS.md)) |
+| `FIB_*` | (retired) | Ignored: automatic FIB payments were retired on 2026-10-12 ([docs/PAYMENTS.md](docs/PAYMENTS.md)) |
+| `OUTBOUND_INTEGRATIONS` | var | `disabled` hides all provider credentials so nothing is sent. Always set by E2E and Vitest; optional for quiet local work ([docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md)) |
 | `NEXT_PUBLIC_IMAGE_TRANSFORMS` | build var | `cloudflare` in production builds |
 | `SEED_*` | local only | Seed inputs for development and E2E; never against production |
 
@@ -117,6 +120,8 @@ Never change the production schema by hand. Every change goes through a reviewed
 | `npm run db:seed` | Seed local data |
 | `npm run owner:bootstrap -- <yasser\|ayman>` | Writes a one-time SQL file to provision an owner account |
 | `node scripts/telegram-chat-ids.mjs` | Lists Telegram chats that started the bot (never prints the token) |
+| `npm run preview:proxy -- model.stl [out.glb]` | Builds a reduced 3D preview proxy locally (for upload in admin; it still needs approval). The original is only read |
+| `npm run admin:reset -- <username> [--reset-totp]` | Writes a one-time SQL file to reset an admin's password (and optionally TOTP) locally |
 | `node scripts/generate-icons.mjs` | Regenerates favicon and app icons from the brand mark |
 
 ## Deployment (prepared, not performed)

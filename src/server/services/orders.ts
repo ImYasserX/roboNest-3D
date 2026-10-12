@@ -21,7 +21,6 @@ import { depositBase, resolveDepositTerms, type DepositConfig } from "@/lib/paym
 import type { OrderStatus } from "@/lib/domain";
 import { getCartView, ownerKeyFor, type CartOwner } from "./cart";
 import { orderPlacedEvent } from "./notifications";
-import { getSetting } from "./settings";
 
 // ---------------------------------------------------------------------------
 // Input validation
@@ -116,19 +115,15 @@ export async function quoteDelivery(db: Database, zoneId: string | undefined, ar
 // ---------------------------------------------------------------------------
 
 /**
- * How a deposit can be paid right now. `onlineAvailable` comes from server
- * configuration (a real provider with credentials); the manual fallback needs
- * recorded owner approval and at least one enabled transfer method.
+ * How a deposit can be paid. Since 2026-10-12 every payment is arranged with
+ * RoboNest.3D on WhatsApp and confirmed by an Owner (owner decision), so a
+ * deposit can always be paid; there is no automatic online provider.
  */
-export async function loadDepositConfig(db: Database, onlineAvailable = false): Promise<DepositConfig> {
-  const payments = await getSetting(db, "payments");
-  const anyManualMethod = Object.values(payments.methods).some((m) => m.enabled);
-  return { onlineAvailable, manualAvailable: payments.manualFallback.approved && anyManualMethod };
-}
+export const DEPOSIT_CONFIG: DepositConfig = { onlineAvailable: false, manualAvailable: true };
 
 /** Initial status and deposit columns for a new order, or an error when a required deposit cannot be paid. */
-export async function initialPaymentState(db: Database, totals: { subtotal: number; discountTotal: number; total: number }, onlineAvailable = false) {
-  const terms = resolveDepositTerms(await loadDepositConfig(db, onlineAvailable), depositBase(totals.subtotal, totals.discountTotal));
+export function initialPaymentState(totals: { subtotal: number; discountTotal: number; total: number }) {
+  const terms = resolveDepositTerms(DEPOSIT_CONFIG, depositBase(totals.subtotal, totals.discountTotal));
   if ("error" in terms) return { ok: false as const, error: "deposit_unconfigured" as const };
   return {
     ok: true as const,
@@ -149,8 +144,6 @@ export type PlaceOrderContext = {
   owner: CartOwner;
   userId: string | null;
   appSecret: string;
-  /** A real online deposit provider is configured (see server/payments.ts). */
-  onlineDepositAvailable?: boolean;
   now?: Date;
 };
 
@@ -216,7 +209,7 @@ export async function placeOrder(db: Database, rawInput: unknown, ctx: PlaceOrde
   }
 
   const totals = computeTotals(cart.lines.map((l) => l.lineTotal), discountAmount, deliveryFee);
-  const payment = await initialPaymentState(db, totals, ctx.onlineDepositAvailable ?? false);
+  const payment = initialPaymentState(totals);
   if (!payment.ok) return { ok: false, error: payment.error };
   const orderId = crypto.randomUUID();
   const orderNumber = generateOrderNumber("RN", now);

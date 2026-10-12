@@ -109,7 +109,8 @@ describe("contact email configuration", () => {
   it("loads Resend settings from Worker bindings and requires a separate sender", async () => {
     const { contactEmailStatus } = await import("@/server/email-config");
     const env = p.env as unknown as Record<string, string | undefined>;
-    Object.assign(env, { RESEND_API_KEY: "re_test_1234567890", CONTACT_FORM_EMAIL: "contact@robonest.tech", CONTACT_FROM_EMAIL: "contact@robonest.tech" });
+    // Fake values only; the outbound kill switch is lifted just for this check (no network call is made).
+    Object.assign(env, { OUTBOUND_INTEGRATIONS: undefined, RESEND_API_KEY: "re_test_1234567890", CONTACT_FORM_EMAIL: "contact@robonest.tech", CONTACT_FROM_EMAIL: "contact@robonest.tech" });
     const same = await contactEmailStatus();
     expect(same.config).toBeNull();
     expect(same.problems.join(" ")).toMatch(/separate address/);
@@ -123,7 +124,7 @@ describe("contact email configuration", () => {
     process.env.RESEND_API_KEY = "re_from_dotenv_9999999";
     expect((await contactEmailStatus()).problems).toContain("RESEND_API_KEY missing");
     delete process.env.RESEND_API_KEY;
-    Object.assign(env, { RESEND_API_KEY: undefined, CONTACT_FORM_EMAIL: undefined, CONTACT_FROM_EMAIL: undefined });
+    Object.assign(env, { OUTBOUND_INTEGRATIONS: "disabled", RESEND_API_KEY: undefined, CONTACT_FORM_EMAIL: undefined, CONTACT_FROM_EMAIL: undefined });
   });
 
   it("treats a Resend response without an email id as a failure", async () => {

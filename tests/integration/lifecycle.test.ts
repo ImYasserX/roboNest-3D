@@ -2,7 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { discounts, orders, orderStatusHistory, products, uploads } from "@/server/db/schema";
 import { addToCart } from "@/server/services/cart";
-import { changeOrderStatus, changePaymentStatus } from "@/server/services/admin-orders";
+import { changeOrderStatus } from "@/server/services/admin-orders";
+import { confirmDue } from "../support/payments";
 import { placeOrder, getOrderByAccessToken } from "@/server/services/orders";
 import { acceptQuote, declineQuote, getCustomRequestForCustomer, reviewCustomRequest, submitCustomRequest } from "@/server/services/custom-print";
 import { authorizeDownload, listEntitlements, MAX_DOWNLOADS_PER_ITEM } from "@/server/services/downloads";
@@ -29,7 +30,7 @@ async function orderFor(product: typeof products.$inferSelect, qty = 1, extra: R
 }
 
 describe("order status lifecycle", () => {
-  it("walks the production pipeline and marks COD paid on delivery", async () => {
+  it("walks the production pipeline; delivery alone never marks the order paid", async () => {
     const r = await orderFor(await makeProduct(p.db));
     const steps = ["CONFIRMED", "IN_PRODUCTION", "QUALITY_CHECK", "READY_FOR_DELIVERY", "OUT_FOR_DELIVERY", "DELIVERED"] as const;
     let from = "PENDING" as (typeof steps)[number] | "PENDING";
@@ -38,7 +39,10 @@ describe("order status lifecycle", () => {
       from = to;
     }
     const [o] = await p.db.select().from(orders).where(eq(orders.id, r.orderId));
-    expect(o).toMatchObject({ status: "DELIVERED", paymentStatus: "PAID" });
+    expect(o).toMatchObject({ status: "DELIVERED", paymentStatus: "PENDING" });
+    // The Owner confirms the cash collected on delivery.
+    await confirmDue(p.db, r.orderId, "CASH_ON_DELIVERY");
+    expect((await p.db.select().from(orders).where(eq(orders.id, r.orderId)))[0].paymentStatus).toBe("PAID");
     expect(o.confirmedAt).not.toBeNull();
     expect(await p.db.$count(orderStatusHistory, eq(orderStatusHistory.orderId, r.orderId))).toBe(7);
     const view = await getOrderByAccessToken(p.db, r.orderNumber, r.accessToken);
@@ -79,7 +83,7 @@ describe("digital downloads", () => {
 
     expect(await authorizeDownload(p.db, buyer.id, item.id, file.id)).toEqual({ ok: false, error: "unpaid" });
     expect((await listEntitlements(p.db, buyer.id))[0].unlocked).toBe(false);
-    await changePaymentStatus(p.db, r.orderId, "PAID", actor);
+    await confirmDue(p.db, r.orderId);
     expect(await authorizeDownload(p.db, stranger.id, item.id, file.id)).toEqual({ ok: false, error: "not_found" });
     const ok = await authorizeDownload(p.db, buyer.id, item.id, file.id);
     expect(ok.ok && ok.file.r2Key).toBe("digital/2026/01/x.stl");

@@ -10,6 +10,11 @@ export function devVar(name) {
   return line?.slice(name.length + 1).trim().replace(/^"|"$/g, "") || undefined;
 }
 
+/** True when the outbound kill switch is set (environment first, then .dev.vars). */
+export function outboundDisabled() {
+  return (process.env.OUTBOUND_INTEGRATIONS ?? devVar("OUTBOUND_INTEGRATIONS")) === "disabled";
+}
+
 export async function promptHidden(question) {
   const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: process.stdin.isTTY });
   const write = rl._writeToOutput.bind(rl);

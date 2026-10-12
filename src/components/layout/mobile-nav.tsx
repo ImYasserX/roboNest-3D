@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import { CloseIcon, MenuIcon } from "@/components/ui/icons";
-import type { ThemePreference } from "@/lib/theme";
+import type { Theme } from "@/lib/theme";
 import { LanguageSwitcher } from "./language-switcher";
 import { ThemeChooser } from "./theme-toggle";
 
@@ -19,7 +19,7 @@ type NavItem = { href: string; label: string };
  * in English (LTR), right in Arabic (RTL). The slide-in animation direction
  * follows the same edge.
  */
-export function MobileNav({ items, secondary, theme }: { items: NavItem[]; secondary: NavItem[]; theme: ThemePreference }) {
+export function MobileNav({ items, secondary, theme }: { items: NavItem[]; secondary: NavItem[]; theme: Theme }) {
   const t = useTranslations("nav");
   const dialogRef = useRef<HTMLDialogElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);

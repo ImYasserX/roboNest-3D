@@ -1,7 +1,7 @@
 {
   "meta": {
     "defaultTitle": "RoboNest.3D: 3D printing, custom parts and 3D models",
-    "defaultDescription": "We design and print made-to-order parts, robotics components, tools and decorations in our own workshop, print customer files, and sell downloadable 3D models. Cash on delivery with a flat delivery fee.",
+    "defaultDescription": "We design and print made-to-order parts, robotics components, tools and decorations in our own workshop, print customer files, and sell downloadable 3D models. Pay on delivery or directly via WhatsApp, with a flat delivery fee.",
     "tagline": "Build. Print. Innovate."
   },
   "common": {
@@ -67,7 +67,8 @@
     "switchTo": "العربية",
     "switchToLabel": "Switch to Arabic",
     "orders": "My orders",
-    "searchSubmit": "Search"
+    "searchSubmit": "Search",
+    "whatsappChat": "Chat with RoboNest.3D on WhatsApp ({number}), opens WhatsApp"
   },
   "footer": {
     "about": "RoboNest.3D is the 3D printing workshop of RoboNest. We design, print and finish engineering parts, robotics components, tools and decorations ourselves, and print our customers' own designs.",
@@ -114,14 +115,15 @@
       "CANCELLED": "This order was cancelled.",
       "RETURN_REQUESTED": "Your return request is being reviewed.",
       "RETURNED": "The items were returned.",
-      "AWAITING_DEPOSIT": "We received your order. Please transfer the deposit so we can confirm it.",
+      "AWAITING_DEPOSIT": "We received your order. Please contact us on WhatsApp to pay the deposit so we can confirm it.",
       "DEPOSIT_SUBMITTED": "We received your transfer details and are checking the deposit.",
       "DEPOSIT_VERIFIED": "Your deposit is verified. We will confirm your order shortly."
     },
     "payment": {
-      "PENDING": "Pay on delivery",
+      "PENDING": "Awaiting payment",
       "PAID": "Paid",
-      "REFUNDED": "Refunded"
+      "REFUNDED": "Refunded",
+      "DISPUTED": "Disputed"
     },
     "paymentMethod": {
       "COD": "Cash on delivery"
@@ -151,8 +153,8 @@
     },
     "deposit": {
       "NOT_REQUIRED": "Not required",
-      "AWAITING": "Awaiting transfer",
-      "SUBMITTED": "Submitted, needs checking",
+      "AWAITING": "Awaiting deposit",
+      "SUBMITTED": "Reference sent (check it)",
       "VERIFIED": "Verified"
     },
     "depositMethod": {
@@ -183,7 +185,7 @@
     "customTitle": "Have a design? We print it.",
     "customDescription": "Upload your STL, 3MF or OBJ file, choose the material and colour, and we send you a quote. You only pay when the part is delivered.",
     "customCta": "Start a custom print",
-    "customPoint1": "PLA, PETG, ABS, TPU and resin",
+    "customPoint1": "PLA, PETG, ABS and TPU",
     "customPoint2": "Engineering-grade tolerances",
     "customPoint3": "Quote before you commit",
     "howTitle": "How it works",
@@ -251,7 +253,7 @@
     "noResultsHint": "Try removing a filter or searching for something else.",
     "productCount": "{count, plural, =0 {No products} one {# product} other {# products}}",
     "customizable": "Customizable",
-    "preview3d": "3D preview",
+    "preview3d": "360° preview",
     "onSale": "Sale",
     "from": "From",
     "productsIn": "{count, plural, =0 {No products yet} one {# product} other {# products}}",
@@ -308,11 +310,7 @@
     "gallery": "Product images",
     "showImage": "Show image {index}",
     "imageOf": "Image {index} of {total}",
-    "view3d": "3D preview",
-    "view3dHint": "Drag to rotate, scroll or pinch to zoom.",
-    "load3d": "Load 3D preview",
-    "load3dNote": "Loads a {size} interactive model.",
-    "preview3dLabel": "Interactive 3D preview of {name}",
+    "view3d": "3D view",
     "noImage": "Image coming soon",
     "save": "Save item",
     "saved": "Saved",
@@ -336,6 +334,21 @@
       "invalid_upload": "The uploaded file could not be verified. Please upload it again.",
       "too_many_lines": "Your cart is full. Please check out or remove items first.",
       "not_found": "This product could not be found."
+    },
+    "viewer": {
+      "label": "Interactive 3D preview of {name}",
+      "load": "Load 3D preview",
+      "loadNote": "Downloads a simplified preview model (under 1 MB). The design you buy has full detail.",
+      "loading": "Loading 3D preview… {percent}%",
+      "error": "The 3D preview could not be loaded. Product photos are still available.",
+      "retry": "Try again",
+      "controls": "3D view controls",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "pause": "Stop rotating",
+      "spin": "Rotate",
+      "reset": "Reset view",
+      "hint": "Drag or swipe to turn it, pinch or scroll to zoom. With the viewer focused: arrow keys turn it, Page Up and Page Down zoom. This is a simplified preview shape, not to scale and without fine detail."
     }
   },
   "cart": {
@@ -380,9 +393,9 @@
     "orderNotes": "Order notes",
     "saveAddress": "Save this address to my account",
     "payment": "Payment",
-    "codTitle": "Cash on delivery (COD)",
-    "codText": "Pay the courier in cash when your order arrives. No card or online payment is taken on this website.",
-    "codDigital": "For digital files, our team will contact you to arrange payment. Downloads unlock once payment is confirmed.",
+    "codTitle": "Cash on delivery, or pay us directly",
+    "codText": "Physical items can be paid in cash to the courier. No card or online payment is taken on this website.",
+    "codDigital": "Digital files are paid before download: they unlock only after our team verifies your payment.",
     "discountCode": "Discount code",
     "applyCode": "Apply",
     "discount": "Discount",
@@ -418,12 +431,11 @@
     },
     "deliveryArrangement": "Delivery costs {fee} to every location we deliver to. After you order, we call you to confirm the order and arrange the delivery. Delivery times are estimates, not guaranteed dates.",
     "depositTitle": "A deposit is required for this order",
-    "depositText": "Orders above {threshold} need a deposit of 30% of the products total after discounts ({amount}) before we confirm them. Delivery is not included in this calculation. After you place the order, the order page shows how to pay it. The rest is paid in cash on delivery.",
-    "depositUnavailableTitle": "Orders of this size cannot be placed online yet",
-    "depositUnavailableText": "Orders above {threshold} need a deposit, and deposit payment is not available online yet. Please contact us to place this order, or reduce the order total.",
-    "depositLine": "Deposit (by transfer)",
+    "depositText": "Orders above {threshold} need a deposit of 30% of the products total after discounts ({amount}) before we confirm them. Delivery is not included in this calculation. After you place the order, contact us on WhatsApp from the order page to pay it; it counts only after our team verifies it. The rest is paid on delivery.",
+    "depositLine": "Deposit (confirmed by our team)",
     "balanceLine": "Balance on delivery",
-    "policyNote": "Please read our <terms>terms</terms>, <delivery>delivery</delivery>, <payment>payment and deposit</payment> and <returns>returns</returns> policies before ordering."
+    "policyNote": "Please read our <terms>terms</terms>, <delivery>delivery</delivery>, <payment>payment and deposit</payment> and <returns>returns</returns> policies before ordering.",
+    "whatsappStep": "After you place the order, the order page shows the exact amount and a button to contact RoboNest.3D on WhatsApp. A payment counts as received only after our team has checked it."
   },
   "order": {
     "confirmedTitle": "Thank you! Your order is placed.",
@@ -435,7 +447,29 @@
     "items": "Items",
     "summary": "Summary",
     "deliveryTo": "Delivery address",
-    "payment": "Payment",
+    "payment": {
+      "title": "Payment",
+      "titleDeposit": "Deposit payment",
+      "whyDeposit": "This order is above 50,000 IQD, so a 30% deposit of the products total after discounts is needed before we confirm it and start production.",
+      "reference": "Order reference",
+      "amountDue": "Amount due now",
+      "purpose": "Payment for",
+      "purposeDeposit": "Upfront deposit (30%)",
+      "purposeFull": "Full order payment",
+      "purposeBalance": "Remaining balance",
+      "howTo": "Contact RoboNest.3D on WhatsApp to arrange this payment. We will tell you how to pay and confirm it once we have checked that it arrived.",
+      "onDelivery": "You can pay {amount} in cash when the order is delivered. If you prefer to pay before delivery, contact us on WhatsApp.",
+      "whatsapp": "Confirm payment on WhatsApp",
+      "whatsappOptional": "Contact us on WhatsApp",
+      "orCall": "or call",
+      "transferDetails": "Transfer details",
+      "notReceivedUntilVerified": "Opening WhatsApp or sending a message does not mark this payment as paid. It counts as received only after the RoboNest.3D team has verified it, and this page will then show it.",
+      "disputed": "We could not confirm a payment for this order yet. Please contact us on WhatsApp so we can sort it out.",
+      "legacySubmitted": "We received your transfer details ({method}, reference {reference}). Our team is checking the transfer.",
+      "depositVerified": "Your deposit of {amount} was received and verified by our team.",
+      "paidVerified": "Your payment was received and verified by our team.",
+      "refunded": "A refund was recorded for this order. Contact us if you have any questions."
+    },
     "history": "Status history",
     "notes": "Your notes",
     "digitalReady": "Your digital files are ready in your account.",
@@ -452,55 +486,8 @@
     "whatsappMessage": "Hello RoboNest.3D, I have a question about order {number}.",
     "myOrders": "My orders",
     "deposit": {
-      "title": "Insurance deposit",
-      "why": "This order is above the deposit threshold, so a deposit of {amount} (30% of the products total after discounts) is needed before we confirm it and start production.",
-      "instructionsIntro": "Transfer {amount} using one of these methods, then enter the transaction reference below.",
-      "method": "Payment method",
-      "reference": "Transaction reference",
-      "referenceHint": "The reference or transaction number shown in your payment app after the transfer.",
-      "submit": "Send transfer details",
-      "sending": "Sending…",
-      "submitted": "Thank you. We received your transfer details. Our team will check the transfer and confirm your order.",
-      "manualNote": "Sending the reference does not mark the deposit as paid. A member of our team checks every transfer by hand.",
-      "noMethods": "Deposit payment methods are not available right now. Please contact us to complete this order.",
-      "underReview": "We received your transfer details ({method}, reference {reference}). Our team is checking the transfer.",
-      "verified": "Your deposit of {amount} was received and verified.",
       "depositLine": "Deposit",
-      "balanceLine": "Balance on delivery",
-      "errors": {
-        "invalid_input": "Please choose a method and enter a valid reference (4 to 64 characters).",
-        "method_unavailable": "This payment method is not available. Please choose another one.",
-        "not_awaiting": "This order is not waiting for a deposit.",
-        "conflict": "This order was just updated. Please reload the page.",
-        "not_found": "Order not found.",
-        "failed": "We could not save your transfer details. Please try again.",
-        "manual_not_approved": "Manual transfer reporting is not available right now. Please use the online payment option or contact us.",
-        "amount_mismatch": "The amount does not match the required deposit."
-      },
-      "online": {
-        "title": "Pay the deposit of {amount} with the FIB app",
-        "start": "Pay with FIB",
-        "starting": "Preparing payment…",
-        "readableCode": "Payment code",
-        "openApp": "Open in the FIB app",
-        "qrAlt": "FIB payment QR code",
-        "check": "I have paid, check now",
-        "checking": "Checking with FIB…",
-        "declined": "The last FIB payment was declined or expired. You can start a new one.",
-        "note": "Your deposit is marked as paid only after FIB confirms the payment to our server.",
-        "errors": {
-          "unpaid": "FIB has not confirmed the payment yet. If you just paid, wait a moment and check again.",
-          "declined": "FIB reports this payment as declined or expired. Please start a new payment.",
-          "amount_mismatch": "The paid amount does not match the deposit. Our team will contact you.",
-          "provider_error": "We could not reach FIB right now. Please try again shortly.",
-          "provider_failed": "We could not create the FIB payment. Please try again shortly.",
-          "paid_but_order_closed": "This order was closed before the payment arrived. Our team will contact you about the payment.",
-          "online_unavailable": "Online payment is not available right now.",
-          "not_awaiting": "This order is not waiting for a deposit.",
-          "not_found": "Payment not found.",
-          "unknown_payment": "Payment not found."
-        }
-      }
+      "balanceLine": "Balance on delivery"
     }
   },
   "account": {
@@ -657,14 +644,14 @@
     "step1": "Upload your file and choose material, colour and size.",
     "step2": "Our engineers check printability and send you a quote.",
     "step3": "Accept the quote and enter your delivery address.",
-    "step4": "We print, check and deliver. You pay cash on delivery (orders above 50,000 IQD need a deposit first).",
+    "step4": "We print, check and deliver. You pay on delivery or directly via WhatsApp (orders above 50,000 IQD need a deposit first).",
     "requestTitle": "Custom request {number}",
     "quoteTitle": "Your quote",
     "quotePrice": "Price for the whole job",
     "quoteDays": "Production time",
     "quoteMessage": "Message from our team",
     "acceptTitle": "Accept the quote",
-    "acceptText": "Enter your delivery address. We will create your order for {price} plus the flat delivery fee, payable in cash on delivery.",
+    "acceptText": "Enter your delivery address. We will create your order for {price} plus the flat delivery fee; you pay on delivery or directly via WhatsApp.",
     "accept": "Accept and place order",
     "accepting": "Placing order…",
     "decline": "Decline quote",
@@ -762,7 +749,7 @@
       "items": [
         {
           "q": "How do I pay?",
-          "a": "Cash on delivery: you pay the courier when your order arrives. Orders above 50,000 IQD (products total after discounts) need a 30% deposit first. We never ask for card details on the website."
+          "a": "Physical orders can be paid in cash when they arrive, or directly to us. Contact us on WhatsApp from your order page to arrange it. Orders above 50,000 IQD (products total after discounts) need a 30% deposit first, and digital files are paid before download. A payment counts only after our team verifies it. We never ask for card details on the website."
         },
         {
           "q": "How much is delivery?",
@@ -790,7 +777,7 @@
         },
         {
           "q": "Which materials do you use?",
-          "a": "PLA, PLA+, PETG, ABS, TPU and resin, depending on the product. Each product page lists its materials."
+          "a": "PLA, PLA+, PETG, ABS and TPU, depending on the product. Each product page lists its materials. We do not offer resin printing."
         }
       ]
     },
@@ -867,7 +854,7 @@
         },
         {
           "title": "Payments and deposits",
-          "body": "Payment is in cash on delivery, so we never receive card details. For deposits, we store the payment method, the transaction reference (from you or from the payment provider), the deposit amount and whether it was verified. If you pay a deposit through FIB, FIB processes that payment and tells our server its status and amount."
+          "body": "We never receive card details: payments are made in cash or directly to us and verified by our team. For each payment we record the amount, how it was paid, any note our team made when checking it, and who verified it. Messages you send us on WhatsApp are handled by WhatsApp under its own terms."
         },
         {
           "title": "Files you upload",
@@ -916,7 +903,7 @@
         },
         {
           "title": "Payment",
-          "body": "Payment is cash on delivery. Orders above {threshold} need an insurance deposit first, as described in the payment and deposit policy. For digital-only orders, our team contacts you to arrange payment before files are unlocked."
+          "body": "Payment is made on delivery or directly to RoboNest.3D, arranged on WhatsApp, and counts only after our team verifies it. Orders above {threshold} need an insurance deposit first, as described in the payment and deposit policy. Digital files unlock only after the full payment is verified."
         },
         {
           "title": "Product descriptions",
@@ -950,34 +937,34 @@
     "payment": {
       "title": "Payment and deposit policy",
       "description": "How you pay for orders, and when and how an insurance deposit is required.",
-      "summary": "Pay in cash on delivery. Orders above {threshold} need a deposit of 30% of the products total first.",
+      "summary": "Pay on delivery or directly to RoboNest.3D, arranged on WhatsApp. Orders above {threshold} need a deposit of 30% of the products total first. A payment counts only after our team verifies it.",
       "sections": [
         {
-          "title": "Cash on delivery",
-          "body": "You pay the courier in cash when your order arrives. This website never asks for card details."
+          "title": "Paying for your order",
+          "body": "Physical items can be paid in cash to the courier when your order arrives. You can also pay RoboNest.3D directly: the order page has a button to contact us on WhatsApp (0751-891-1112) with your order number and the amount. This website never takes card or online payments."
         },
         {
           "title": "When a deposit is required",
           "body": [
             "Orders whose products total, after discounts and without the {fee} delivery fee, is more than {threshold} need a deposit before we confirm them. An order of exactly {threshold} does not need a deposit.",
             "The deposit is 30% of that products total, rounded down to whole dinars. For example, a products total of 60,000 IQD needs a deposit of 18,000 IQD. The delivery fee is not part of this calculation.",
-            "The deposit is part of your order total, not an extra charge: the rest is paid in cash on delivery."
+            "The deposit is part of your order total, not an extra charge: the rest is paid on delivery (or directly, by arrangement)."
           ]
         },
         {
           "title": "How to pay the deposit",
           "body": [
-            "After you place the order, the order page shows the ways to pay the deposit that are available at that time.",
-            "A deposit is marked as paid only after it is confirmed: either by the payment provider directly to our server, or by a member of our team who has checked the transfer in our provider account. Entering a reference or sending a screenshot does not by itself mark the deposit as paid. Your order is confirmed and production starts only after the deposit is verified."
+            "After you place the order, the order page shows the deposit amount and a button to contact us on WhatsApp to arrange the payment.",
+            "A payment or deposit counts as received only after a RoboNest.3D owner has checked that the money actually arrived and confirmed it. Opening WhatsApp, sending a message, a reference or a screenshot does not by itself mark anything as paid. Your order is confirmed and production starts only after the deposit is verified."
           ]
         },
         {
           "title": "If a payment cannot be confirmed",
-          "body": "If a payment is declined, expires, or a transfer cannot be found, the order page tells you and you can try again. You can also contact us."
+          "body": "If we cannot find your payment, the order page tells you and we will contact you, or you can message us on WhatsApp."
         },
         {
           "title": "Digital files",
-          "body": "For digital-only orders, our team contacts you to arrange payment. Downloads unlock once payment is confirmed."
+          "body": "Digital files are paid before download: contact us on WhatsApp from the order page. Downloads unlock only after our team has verified the full payment."
         },
         {
           "title": "Deposits on cancelled orders",
@@ -1011,8 +998,18 @@
       "signOut": "Sign out",
       "openMenu": "Open admin menu",
       "closeMenu": "Close admin menu",
-      "payments": "Payments & deposits",
-      "notifications": "Notifications"
+      "payments": "Payments",
+      "notifications": "Notifications",
+      "skipToContent": "Skip to content",
+      "badge": "Admin",
+      "groups": {
+        "sales": "Sales",
+        "catalog": "Catalog",
+        "people": "People",
+        "operations": "Operations",
+        "site": "Website",
+        "security": "Security"
+      }
     },
     "role": {
       "SUPER_ADMIN": "Super Admin",
@@ -1064,7 +1061,15 @@
       "notSet": "Not set",
       "sortOrder": "Sort order",
       "required": "required",
-      "never": "Never"
+      "never": "Never",
+      "breadcrumbs": "Breadcrumb",
+      "clearFilters": "Clear filters",
+      "showing": "{from}–{to} of {total}",
+      "dashboard": "Dashboard",
+      "close": "Close",
+      "saving": "Saving…",
+      "clearSelection": "Clear selection",
+      "loading": "Loading…"
     },
     "login": {
       "title": "Admin sign in",
@@ -1152,7 +1157,21 @@
       "chartSummary": "{label}: total {total} over {days} days, highest {max} on {day}.",
       "showTable": "Show data table",
       "date": "Date",
-      "value": "Value"
+      "value": "Value",
+      "welcome": "Signed in as {name}. Here is what needs attention.",
+      "newProduct": "New product",
+      "bulkProducts": "Manage products",
+      "verifyPayments": "Verify payments",
+      "attention": "Needs attention",
+      "awaitingPayments": "Payments to verify",
+      "awaitingPaymentsHint": "{deposits} deposits · {full} order payments",
+      "outstandingDeposits": "Outstanding deposits",
+      "outstandingDepositsHint": "{count} orders waiting for a deposit",
+      "disputedPayments": "Disputed payments",
+      "previewsPending": "3D previews to review",
+      "draftProducts": "{count} draft products",
+      "openByStatus": "Open orders by status",
+      "performance": "Performance"
     },
     "orders": {
       "title": "Orders",
@@ -1178,9 +1197,6 @@
       "publicNoteHint": "Optional. Shown on the customer's order page.",
       "updateStatus": "Update status",
       "paymentSection": "Payment",
-      "paymentStatus": "Payment status",
-      "updatePayment": "Update payment",
-      "paymentHint": "Marking DELIVERED sets COD orders to Paid automatically.",
       "history": "Status history",
       "by": "by {actor}",
       "files": "Customer files",
@@ -1199,19 +1215,7 @@
         "amount_mismatch": "The received amount must equal the required deposit exactly. If the customer paid a different amount, contact them before verifying."
       },
       "deposit": {
-        "title": "Deposit",
-        "amount": "Required deposit",
-        "status": "Deposit status",
-        "method": "Method",
-        "reference": "Customer's reference",
-        "verifiedAt": "Verified at",
-        "balance": "Balance due on delivery",
-        "checkHint": "Open the provider account (FIB, QiCard or ZainCash) and confirm a transfer with this reference and amount arrived. Only then verify. A reference or screenshot alone is not proof.",
-        "verify": "Verify deposit",
-        "reject": "Transfer not found",
-        "noPermission": "Only Owners and Super Admins can verify deposits.",
-        "receivedAmount": "Amount received (IQD)",
-        "receivedAmountHint": "Type the amount you see in the provider account. It must be exactly {amount}."
+        "reference": "Customer's reference"
       }
     },
     "products": {
@@ -1232,7 +1236,7 @@
         "specs": "Specifications",
         "seo": "SEO",
         "media": "Images",
-        "preview": "3D preview (GLB)",
+        "preview": "3D preview",
         "files": "Digital files",
         "options": "Customization options",
         "danger": "Archive or delete"
@@ -1301,11 +1305,49 @@
         "none": "No images yet."
       },
       "preview": {
-        "upload": "Upload GLB",
-        "hint": "Binary glTF (.glb), up to 30 MB. Keep it light (under 5 MB) for mobile visitors.",
-        "current": "A preview model is attached.",
-        "none": "No preview model.",
-        "remove": "Remove preview"
+        "intro": "The storefront shows an interactive 3D preview only when a preview proxy is approved. A proxy is a separate, simplified copy: fewer triangles, fine detail removed, scaled to a unit size so real dimensions are not shown. Paid files are never published. Visitors can still download the proxy itself, so only approve shapes you are comfortable sharing at that level of detail.",
+        "live": "Live preview",
+        "noneLive": "No approved preview: the storefront shows photos only.",
+        "generate": "Generate from a paid file",
+        "generateHint": "Builds a simplified proxy on the server from an STL, OBJ or GLB file up to 25 MB. The original is only read, never changed or published.",
+        "detail": "Detail",
+        "detailLow": "Low (about 2,500 triangles)",
+        "detailMedium": "Medium (about 6,000 triangles)",
+        "detailHigh": "High (about 12,000 triangles)",
+        "generateButton": "Generate preview",
+        "generated": "Preview generated. Review it below, then approve it.",
+        "upload": "Upload a proxy GLB",
+        "uploadHint": "A simplified GLB made elsewhere (up to 3 MB, 20,000 triangles, no textures). It is checked by its content and refused if it is a paid file or not reduced.",
+        "candidates": "Previews",
+        "noCandidates": "No previews yet.",
+        "status": {
+          "PENDING_REVIEW": "Waiting for review",
+          "APPROVED": "Live",
+          "REJECTED": "Rejected"
+        },
+        "source": {
+          "GENERATED": "Generated",
+          "UPLOADED": "Uploaded"
+        },
+        "stats": "{triangles} triangles · {size}",
+        "reduction": "{percent}% of the original's triangles",
+        "review": "Review in 3D",
+        "approve": "Approve and publish",
+        "approveHint": "Only Owners and Super Admins can approve. Approving replaces the current live preview.",
+        "reject": "Reject",
+        "withdraw": "Withdraw from storefront",
+        "delete": "Delete",
+        "reason": "Reason (optional)",
+        "approved": "Preview approved. It is now shown on the product page.",
+        "cannotApprove": "Only an Owner or Super Admin can approve previews.",
+        "legacyGlb": "This product has a legacy GLB from the old 3D viewer. It is never shown or served (it may be the full paid geometry) and was kept in storage, not deleted.",
+        "legacyAudit": "Check legacy GLB",
+        "legacyNone": "No legacy GLB.",
+        "legacyMissing": "The legacy GLB is no longer in storage.",
+        "legacyFails": "The legacy GLB does not qualify as a preview ({reasons}). Generate a proxy instead.",
+        "legacyPasses": "The legacy GLB would pass the proxy checks ({triangles} triangles), but it is not published. To use it, upload it as a proxy and approve it after reviewing it.",
+        "turntableLegacy": "{count, plural, one {# turntable frame} other {# turntable frames}} from the previous preview system are stored but no longer shown.",
+        "turntableRemove": "Delete old frames"
       },
       "files": {
         "upload": "Upload digital file",
@@ -1356,8 +1398,8 @@
       "errors": {
         "slug_taken": "Another product already uses this slug.",
         "invalid_slug": "Use lower-case letters, numbers and dashes.",
-        "sale_not_lower": "Sale price must be lower than the base price.",
-        "stock_required": "Enter a stock quantity for in-stock products.",
+        "sale_not_lower": "Sale price must stay below the base price.",
+        "stock_required": "Set a stock quantity for in-stock products.",
         "digital_availability": "Digital products must use the Digital availability.",
         "physical_availability": "Only digital products can use the Digital availability.",
         "range_invalid": "Minimum must not be greater than maximum.",
@@ -1371,7 +1413,96 @@
         "invalid_input": "Please check the highlighted fields.",
         "not_found": "Not found.",
         "invalid_characters": "Contains characters that aren't allowed.",
-        "whole_dinars": "Use whole dinars."
+        "whole_dinars": "Use whole dinars.",
+        "source_too_large": "That file is too large to process on the server (over 25 MB). Make a proxy on your computer and upload it.",
+        "unsupported_format": "Previews can be generated from STL, OBJ or GLB files only.",
+        "unreadable_source": "The file could not be read as a 3D mesh.",
+        "rejected_by_validator": "The file is not an acceptable preview proxy.",
+        "matches_original": "Refused: this file is identical to a paid file.",
+        "not_reduced": "Refused: the preview must have at most half of the original's triangles.",
+        "bad_state": "That preview is not in a state that allows this.",
+        "stored_object_changed": "The stored preview no longer matches what was generated; generate a new one.",
+        "price_too_high": "The price would exceed the maximum."
+      },
+      "unsaved": "Unsaved changes",
+      "bulk": {
+        "description": "{count, plural, one {# product} other {# products}}. Tick products to edit or delete several at once.",
+        "howTo": "Tick products, or tick the header box to select the whole page, then choose an action. Changes are reviewed before anything is saved.",
+        "toolbar": "Selected products",
+        "selected": "{count, plural, one {# product selected} other {# products selected}}",
+        "clear": "Clear selection",
+        "pageSelected": "All {count} products on this page are selected.",
+        "selectAllMatching": "Select all {count} matching products",
+        "allMatchingSelected": "All {count} matching products are selected.",
+        "tooManyToSelect": "Narrow the filters to select across pages (maximum {max}).",
+        "caption": "Products",
+        "selectPage": "Select all on this page",
+        "selectOne": "Select {name}",
+        "category": "Category",
+        "stock": "Stock",
+        "price": "Price",
+        "edit": "Edit",
+        "view": "View",
+        "featured": "Featured",
+        "sortCreated": "Newest",
+        "editSelected": "Edit selected",
+        "editTitle": "Edit {count, plural, one {# product} other {# products}}",
+        "editHelp": "Tick only the fields you want to change. Everything else stays exactly as it is.",
+        "reviewTitle": "Review changes for {count, plural, one {# product} other {# products}}",
+        "reviewHelp": "Nothing has been saved yet.",
+        "review": "Review changes",
+        "apply": "Apply to {count, plural, one {# product} other {# products}}",
+        "reviewUnchanged": "All other fields, images, files, options and 3D previews stay unchanged.",
+        "appliesTo": "Applies to",
+        "appliesToMatching": "Applies to all {count} products matching the current filters.",
+        "andMore": "and {count} more",
+        "changeField": "Change {field}",
+        "fields": {
+          "status": "Status",
+          "categoryId": "Category",
+          "availability": "Availability",
+          "stockQuantity": "Stock quantity",
+          "isFeatured": "Featured",
+          "tags": "Tags",
+          "addTags": "Add tags (comma separated)",
+          "removeTags": "Remove tags",
+          "materials": "Materials",
+          "addMaterials": "Add materials (comma separated)",
+          "removeMaterials": "Remove materials",
+          "pricePercent": "Change prices by percent",
+          "clearSale": "Remove sale price"
+        },
+        "pricePercentHint": "e.g. 10 or -15. Base and sale prices, rounded to whole dinars.",
+        "pricePercentSummary": "Prices: {percent}%",
+        "clearSaleHint": "Products go back to their base price.",
+        "validationFailed": "Nothing was changed: some products would break a rule.",
+        "updated": "Updated {updated}, unchanged {unchanged}.",
+        "deleteSelected": "Delete selected",
+        "deleteTitle": "Delete {count, plural, one {# product} other {# products}}?",
+        "deleteHelp": "Check what will happen to each product before confirming.",
+        "willDelete": "will be deleted permanently (never ordered)",
+        "willArchive": "will be archived instead (they have orders)",
+        "consequence": "What happens",
+        "consequenceDelete": "Deleted with its images, {previews} 3D previews and {files} paid files",
+        "consequenceArchive": "Archived: {orders} order lines ({paid} paid) keep their history and buyers keep their downloads",
+        "consequenceKeep": "Already archived: nothing changes",
+        "deleteRules": "Order history, payments and audit logs are never deleted. Products that were ordered are archived: they leave the store, their 3D preview stops being served, and buyers keep access to what they paid for.",
+        "typeDelete": "Type DELETE to confirm",
+        "confirmDelete": "Delete or archive {count}",
+        "deleteDone": "{deleted} deleted, {archived} archived.",
+        "outcome": {
+          "deleted": "deleted",
+          "archived": "archived (has orders)",
+          "already_archived": "already archived",
+          "failed": "failed"
+        },
+        "errors": {
+          "invalid_selection": "The selection is no longer valid. Reload the page.",
+          "too_many": "Too many products selected. Narrow the filters.",
+          "invalid_input": "Please check the values.",
+          "confirm_required": "Type DELETE to confirm.",
+          "price_too_high": "The price would be too high."
+        }
       }
     },
     "categories": {
@@ -1461,12 +1592,58 @@
     },
     "digitalFiles": {
       "title": "Digital files",
-      "text": "All private digital files across products. Customers can download a file only after their order is paid.",
+      "text": "Original paid files, kept private. Buyers download them only after their full payment is confirmed. 3D preview proxies are a separate, public, reduced asset (see the 3D previews tab).",
       "file": "File",
       "product": "Product",
       "size": "Size",
       "downloads": "Downloads",
-      "manage": "Manage on product"
+      "manage": "Manage on product",
+      "tabFiles": "Paid files (private)",
+      "tabPreviews": "3D previews (public proxies)",
+      "filesExplain": "These are the original files customers pay for. They are never public; activating a file only lets entitled buyers download it.",
+      "previewsExplain": "Preview proxies are reduced, unit-sized meshes shown in the storefront viewer. They are not the paid files. Approve them after reviewing them in 3D on the product page.",
+      "searchPlaceholder": "File name or product",
+      "format": "Format",
+      "sortNewest": "Newest",
+      "sortOldest": "Oldest",
+      "buyers": "Buyers",
+      "paid": "{count} paid",
+      "source": "Source",
+      "triangles": "Triangles",
+      "statusActive": "Active (buyers can download)",
+      "statusInactive": "Inactive",
+      "privateBadge": "Private",
+      "productNotPublished": "Product not published",
+      "toolbar": "Selected files",
+      "selected": "{count, plural, one {# file selected} other {# files selected}}",
+      "selectPage": "Select all files on this page",
+      "selectOne": "Select {name}",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "activateTitle": "Activate {count, plural, one {# file} other {# files}}",
+      "deactivateTitle": "Deactivate {count, plural, one {# file} other {# files}}",
+      "activateText": "Entitled buyers with a confirmed payment will be able to download these files. They stay private.",
+      "deactivateText": "Nobody will be able to download these files until they are activated again. Use this when replacing a file.",
+      "buyersWarning": "{buyers, plural, one {# buyer} other {# buyers}} currently have access to these files and will lose it until you activate them again.",
+      "acknowledge": "I understand that existing buyers lose access.",
+      "delete": "Delete",
+      "deleteTitle": "Delete {count, plural, one {# file} other {# files}} permanently?",
+      "deleteText": "Only files of products that were never ordered can be deleted. Files that customers bought are kept; deactivate or replace them instead.",
+      "deleteBlocked": "{count, plural, one {# selected file belongs} other {# selected files belong}} to ordered products and will be kept.",
+      "typeDelete": "Type DELETE to confirm",
+      "deletePermanently": "Delete permanently",
+      "deleteDone": "{deleted} deleted, {kept} kept because customers ordered them.",
+      "rename": "Rename",
+      "renameTitle": "Rename download file",
+      "renameText": "Changes the file name buyers see when downloading. The file itself is not changed. Keep the same extension.",
+      "errors": {
+        "invalid_selection": "The selection is no longer valid. Reload the page.",
+        "buyers_affected": "{buyers} buyers would lose access. Confirm that you understand.",
+        "confirm_required": "Type DELETE to confirm.",
+        "invalid_input": "Enter a valid file name.",
+        "extension_mismatch": "Keep the file's original extension.",
+        "not_found": "File not found."
+      }
     },
     "discounts": {
       "title": "Discounts",
@@ -1542,7 +1719,10 @@
         "rate_limited": "Too many test emails. Wait a few minutes.",
         "email_not_configured": "Email is not configured. See the list above.",
         "email_rejected": "Resend did not accept the email. Check the API key and that the sender domain is verified."
-      }
+      },
+      "outbound": "Outbound integrations",
+      "outboundOff": "Disabled (OUTBOUND_INTEGRATIONS=disabled): nothing is sent",
+      "outboundOn": "Enabled"
     },
     "admins": {
       "title": "Admin users",
@@ -1593,33 +1773,26 @@
       "delivery_NOT_CONFIGURED": "Email not configured"
     },
     "payments": {
-      "title": "Payments & deposits",
-      "description": "Deposit rules for high-value orders, online payment status, and the temporary manual transfer fallback.",
+      "title": "Payments",
+      "description": "Every payment is arranged with the customer on WhatsApp and counts only after an Owner confirms it was received. Nothing a customer does marks a payment as paid.",
       "rules": "Rules (set in code)",
       "ruleDelivery": "Delivery: flat {fee} for every supported location.",
       "ruleThreshold": "A deposit is required when the order amount is strictly greater than {threshold} (exactly {threshold} does not need one).",
       "ruleBase": "The amount compared is the products subtotal after discounts, without the delivery fee.",
-      "notConfiguredTitle": "Deposits cannot be paid: high-value orders are blocked",
-      "notConfiguredText": "Until an online provider is enabled or an owner approves the manual transfer fallback (with at least one method and instructions), customers cannot place orders above the threshold online.",
       "enabled": "Offer this method",
       "instructions": "Transfer instructions",
       "instructionsHint": "Account name and number or wallet number, plus anything the customer must include. Shown on the order page.",
       "errors": {
         "instructions_required": "Each enabled method needs instructions in English and Arabic.",
-        "invalid_input": "Please check the values.",
-        "owner_required": "Only an owner can approve or withdraw the manual fallback."
+        "invalid_input": "Please check the values."
       },
       "ruleRate": "The deposit is {percent}% of that amount, rounded down to whole dinars (for example {base} → {example}).",
-      "online": "Online payment (FIB)",
-      "onlineEnabled": "FIB online deposits are enabled. A deposit counts as paid only when FIB's status endpoint confirms the exact amount.",
-      "onlineDisabled": "Not enabled. Requires FIB merchant credentials (FIB_BASE_URL, FIB_CLIENT_ID, FIB_CLIENT_SECRET) and FIB_ONLINE_DEPOSITS=enabled, after a verified sandbox payment.",
-      "onlineHint": "QiCard and ZainCash have merchant APIs too, but no integration is built and no merchant account is configured.",
-      "manual": "Manual transfer verification (temporary fallback)",
-      "manualExplain": "Customers transfer the deposit themselves and enter the transaction reference. A staff member must check the provider account and type the received amount before verifying. A reference or screenshot is never proof on its own.",
-      "manualApprove": "Owners approve the manual fallback",
-      "manualApproveHint": "Only owners can change this. The approval is recorded with your name and the date, and in the audit log.",
-      "manualOwnerOnly": "Only an owner can approve or withdraw the manual fallback.",
-      "manualApprovedBy": "Approved by {name} on {date}."
+      "manual": "Transfer details shown to customers",
+      "manualExplain": "Optional. If you want customers to transfer to an account (FIB, QiCard, ZainCash), enable the method and add the details. They are shown with the WhatsApp payment step. They are information only and never mark anything paid.",
+      "ruleManual": "Customers pay RoboNest.3D directly and contact us on WhatsApp. An Owner checks the money actually arrived, then confirms it here.",
+      "ruleDownloads": "Digital files unlock only after the full payment is confirmed. A verified deposit never unlocks them.",
+      "whatsappNumber": "Business WhatsApp",
+      "onlineRetired": "Automatic online payments (the FIB adapter and its callback) are retired. Old payment records are kept for reference."
     },
     "notifications": {
       "title": "Notifications",
@@ -1647,7 +1820,8 @@
         "SENDING": "Sending",
         "SENT": "Sent",
         "FAILED": "Failed",
-        "NOT_CONFIGURED": "Waiting for configuration"
+        "NOT_CONFIGURED": "Waiting for configuration",
+        "SUPPRESSED": "Suppressed (sending was disabled)"
       },
       "errors": {
         "rate_limited": "Too many test messages. Wait a few minutes.",
@@ -1667,13 +1841,118 @@
         "other": "See the error text; retry after fixing the cause."
       },
       "invalidChatIds": "{count, plural, one {# entry} other {# entries}} in TELEGRAM_CHAT_IDS {count, plural, one {is} other {are}} not a valid chat id and {count, plural, one {is} other {are}} ignored. Fix the value so no owner is missed."
+    },
+    "paymentsQueue": {
+      "ownerOnly": "Only an Owner can confirm, dispute or refund payments. You can view the queue.",
+      "tabs": {
+        "awaiting": "Awaiting verification",
+        "disputed": "Disputed",
+        "history": "Verification history",
+        "refunded": "Refunded"
+      },
+      "searchPlaceholder": "Order number",
+      "purposeLabel": "Purpose",
+      "purpose": {
+        "DEPOSIT": "Upfront deposit",
+        "FULL": "Full payment",
+        "BALANCE": "Remaining balance"
+      },
+      "decision": "Decision",
+      "actions": {
+        "CONFIRMED": "Confirmed",
+        "REJECTED": "Rejected",
+        "DISPUTED": "Disputed",
+        "REFUND_RECORDED": "Refund recorded"
+      },
+      "reference": "Order",
+      "amount": "Amount",
+      "channel": "How it was paid",
+      "channels": {
+        "WHATSAPP_TRANSFER": "Transfer arranged on WhatsApp",
+        "CASH_ON_DELIVERY": "Cash collected on delivery",
+        "CASH_IN_PERSON": "Cash in person",
+        "LEGACY_REFERENCE": "Earlier transfer reference"
+      },
+      "by": "Confirmed by",
+      "note": "Note",
+      "customer": "Customer",
+      "expected": "Expected",
+      "expectedCod": "Cash on delivery",
+      "expectedWhatsapp": "Upfront via WhatsApp",
+      "emptyHistory": "No payment decisions recorded yet.",
+      "emptyAwaiting": "Nothing is waiting for verification.",
+      "confirm": "Confirm payment",
+      "confirmTitle": "Confirm that this payment was received",
+      "confirmWarning": "Only confirm after you have checked the money itself: the transfer in the account, or the cash in hand. A customer's message, reference or screenshot is not proof.",
+      "confirmButton": "Confirm {amount} received",
+      "confirmed": "Payment confirmed.",
+      "receivedAmount": "Amount received (IQD)",
+      "receivedAmountHint": "Type the amount you actually saw. It must be exactly {amount}.",
+      "evidence": "What you checked",
+      "evidenceHint": "For example: FIB transfer ref 1234 seen in the account on 12 Oct.",
+      "checkedLabel": "I checked that this money actually arrived.",
+      "reject": "Not received",
+      "rejectTitle": "Deposit not received",
+      "dispute": "Mark disputed",
+      "disputeTitle": "Mark this payment as disputed",
+      "disputeText": "Use this when a customer says they paid but you cannot find the money. Nothing is deleted and no files are released.",
+      "reason": "Reason (internal)",
+      "reasonHint": "Staff only.",
+      "publicNote": "Message to the customer",
+      "publicNoteHint": "Optional. Shown on the customer's order page.",
+      "refund": "Record refund",
+      "refundTitle": "Record a refund",
+      "refundText": "Only record a refund you have ALREADY returned to the customer outside the website. This does not move any money. For a full payment it also locks the customer's downloads again.",
+      "refundReason": "How and when the money was returned",
+      "refundConfirm": "Type REFUNDED to confirm",
+      "refundConfirmHint": "Capital letters.",
+      "paymentStatus": "Payment",
+      "depositRequired": "Required deposit",
+      "depositStatus": "Deposit",
+      "total": "Order total",
+      "dueNow": "Due now",
+      "nothingDue": "Nothing due",
+      "codHint": "Physical order: usually paid in cash on delivery. Confirm it here once the cash has reached you.",
+      "downloadsOpen": "Downloads are unlocked (full payment confirmed).",
+      "downloadsLocked": "Downloads stay locked until the full payment is confirmed.",
+      "history": "Verification history",
+      "noHistory": "No payment decisions yet.",
+      "errors": {
+        "not_found": "Order not found.",
+        "invalid_input": "Please fill in the required fields and tick the confirmation.",
+        "not_due": "This order is not waiting for a payment.",
+        "wrong_kind": "The order moved to a different payment stage. Reload the page.",
+        "amount_mismatch": "The amount must be exactly the amount due. If the customer paid a different amount, contact them first.",
+        "already_confirmed": "This payment was already confirmed.",
+        "conflict": "The order changed meanwhile (for example cancelled or already confirmed). Reload the page.",
+        "not_refundable": "There is no confirmed payment to refund here."
+      }
     }
   },
   "theme": {
     "label": "Theme",
-    "system": "System",
     "light": "Light",
     "dark": "Dark",
     "toggleLabel": "Theme: {current}. Switch to {next}"
+  },
+  "about": {
+    "eyebrow": "Our 3D printing studio",
+    "ctaModels": "Browse 3D Models",
+    "ctaCustom": "Print your own file",
+    "studioLabel": "The studio",
+    "pillarsTitle": "What we do",
+    "pillarLink1": "See what we print",
+    "pillarLink2": "Start a custom print",
+    "pillarLink3": "Browse digital models",
+    "workTitle": "From the workshop",
+    "contactTitle": "Talk to us",
+    "email": "Email",
+    "phones": "Phone",
+    "hours": "Working hours"
+  },
+  "policy": {
+    "eyebrow": "Policies",
+    "contents": "On this page",
+    "related": "See also the <privacy>privacy policy</privacy>, <payment>payment and deposit policy</payment>, <returns>returns policy</returns> and <delivery>delivery information</delivery>."
   }
 }

@@ -6,6 +6,7 @@ import { requireAdminPage } from "@/server/auth/current";
 import { getDb } from "@/server/db/client";
 import { categoryOptions } from "@/server/admin-categories";
 import { getProductForEdit } from "@/server/services/product-admin";
+import { listPreviewsForProduct } from "@/server/services/previews";
 import {
   archiveProductAction,
   deleteDigitalFileAction,
@@ -14,7 +15,11 @@ import {
   deleteOptionValueAction,
   deleteProductAction,
   moveImageAction,
-  removePreviewAction,
+  approvePreviewAction,
+  clearTurntableAction,
+  deletePreviewAction,
+  generatePreviewAction,
+  rejectPreviewAction,
   saveOptionAction,
   saveOptionValueAction,
   setDigitalFileActiveAction,
@@ -28,6 +33,8 @@ import { ActionForm } from "@/components/admin/action-form";
 import { ProductForm } from "@/components/admin/product-form";
 import { AdminPageHeader, Panel } from "@/components/admin/ui";
 import { AdminUploadButton } from "@/components/admin/upload-button";
+import { LegacyPreviewAudit } from "@/components/admin/legacy-preview-audit";
+import { ModelViewer } from "@/components/product/model-viewer";
 import { buttonClass } from "@/components/ui/button";
 import { CheckboxField, SelectField, TextField } from "@/components/ui/field";
 import { Alert, Badge } from "@/components/ui/misc";
@@ -47,11 +54,15 @@ export default async function EditProductPage({ params, searchParams }: PageProp
   const db = await getDb();
   const data = await getProductForEdit(db, id);
   if (!data) notFound();
-  const { product: p, images, options, files, relatedSlugs, acceptsDigitalFiles } = data;
+  const { product: p, images, options, files, relatedSlugs, acceptsDigitalFiles, turntableFrames } = data;
   const [t, tc, lang] = await Promise.all([getTranslations("admin.products"), getTranslations("admin.common"), getLocale()]);
   const canEdit = hasPermission(admin.role, "products.edit");
   const canDelete = hasPermission(admin.role, "products.delete");
   const canFiles = hasPermission(admin.role, "digitalFiles.manage");
+  const canApprove = hasPermission(admin.role, "previews.approve");
+  const previews = await listPreviewsForProduct(db, p.id);
+  const generatable = files.filter((f) => ["STL", "OBJ", "GLB"].includes(f.format));
+  const tp = await getTranslations("admin.products.preview");
   const created = (await searchParams).created === "1";
   const name = pick(lang, p.nameEn, p.nameAr);
 
@@ -144,18 +155,96 @@ export default async function EditProductPage({ params, searchParams }: PageProp
       </Panel>
 
       <Panel title={t("sections.preview")} id="preview">
-        <p className="mb-3 text-sm">{p.previewModelKey ? t("preview.current") : t("preview.none")}</p>
-        {canEdit ? (
-          <div className="flex flex-wrap items-start gap-3">
-            <AdminUploadButton productId={p.id} purpose="PREVIEW_MODEL" accept=".glb" label={t("preview.upload")} hint={t("preview.hint")} />
-            {p.previewModelKey ? (
-              <form action={removePreviewAction}>
-                <input type="hidden" name="productId" value={p.id} />
-                <SubmitButton variant="danger">{t("preview.remove")}</SubmitButton>
-              </form>
-            ) : null}
-          </div>
-        ) : null}
+        <div className="space-y-4">
+          <p className="text-sm text-muted">{tp("intro")}</p>
+          <p className="text-sm font-medium">{previews.some((v) => v.status === "APPROVED") ? tp("live") : tp("noneLive")}</p>
+
+          {canEdit && generatable.length > 0 ? (
+            <ActionForm action={generatePreviewAction} errorNamespace="admin.products" successText={tp("generated")} className="space-y-2 rounded-lg border border-border p-3">
+              <h3 className="font-semibold">{tp("generate")}</h3>
+              <p className="text-xs text-muted">{tp("generateHint")}</p>
+              <input type="hidden" name="productId" value={p.id} />
+              <div className="flex flex-wrap items-end gap-3">
+                <SelectField id="preview-file" name="fileId" label={t("sections.files")}>
+                  {generatable.map((f) => (
+                    <option key={f.id} value={f.id}>{f.filename} ({f.format} · {formatBytes(f.sizeBytes, lang)})</option>
+                  ))}
+                </SelectField>
+                <SelectField id="preview-detail" name="detail" label={tp("detail")} defaultValue="medium">
+                  <option value="low">{tp("detailLow")}</option>
+                  <option value="medium">{tp("detailMedium")}</option>
+                  <option value="high">{tp("detailHigh")}</option>
+                </SelectField>
+                <SubmitButton>{tp("generateButton")}</SubmitButton>
+              </div>
+            </ActionForm>
+          ) : null}
+          {canEdit ? <AdminUploadButton productId={p.id} purpose="PREVIEW_MODEL" accept=".glb" label={tp("upload")} hint={tp("uploadHint")} /> : null}
+
+          <h3 className="font-semibold">{tp("candidates")}</h3>
+          {previews.length === 0 ? (
+            <p className="text-sm text-muted">{tp("noCandidates")}</p>
+          ) : (
+            <ul className="space-y-3" data-testid="preview-candidates">
+              {previews.map((v) => (
+                <li key={v.id} className="space-y-2 rounded-lg border border-border p-3 text-sm" data-preview-status={v.status}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone={v.status === "APPROVED" ? "success" : v.status === "REJECTED" ? "neutral" : "warning"}>{tp(`status.${v.status}`)}</Badge>
+                    <Badge>{tp(`source.${v.source}`)}</Badge>
+                    <span className="ltr-nums text-muted">{tp("stats", { triangles: v.triangleCount.toLocaleString(lang), size: formatBytes(v.sizeBytes, lang) })}</span>
+                    {v.sourceTriangleCount ? <span className="ltr-nums text-muted">· {tp("reduction", { percent: Math.max(1, Math.round((v.triangleCount / v.sourceTriangleCount) * 100)) })}</span> : null}
+                    <span className="text-muted">· {formatDate(v.createdAt, lang, true)}</span>
+                    {v.rejectReason ? <span className="text-muted">· {v.rejectReason}</span> : null}
+                  </div>
+                  <details>
+                    <summary className="cursor-pointer font-medium text-primary-text">{tp("review")}</summary>
+                    <div className="mt-2 max-w-md"><ModelViewer src={`/api/admin/previews/${v.id}`} name={name} /></div>
+                  </details>
+                  <div className="flex flex-wrap items-end gap-2">
+                    {v.status !== "APPROVED" && canApprove ? (
+                      <ActionForm action={approvePreviewAction} errorNamespace="admin.products" successText={tp("approved")} className="space-y-2">
+                        <input type="hidden" name="previewId" value={v.id} />
+                        <SubmitButton size="sm">{tp("approve")}</SubmitButton>
+                      </ActionForm>
+                    ) : null}
+                    {v.status !== "REJECTED" && canApprove ? (
+                      <form action={rejectPreviewAction} className="flex flex-wrap items-end gap-2">
+                        <input type="hidden" name="previewId" value={v.id} />
+                        <TextField id={`reason-${v.id}`} name="reason" label={tp("reason")} maxLength={200} />
+                        <SubmitButton variant="secondary" size="sm">{v.status === "APPROVED" ? tp("withdraw") : tp("reject")}</SubmitButton>
+                      </form>
+                    ) : null}
+                    {v.status !== "APPROVED" && canEdit ? (
+                      <form action={deletePreviewAction}>
+                        <input type="hidden" name="previewId" value={v.id} />
+                        <SubmitButton variant="danger" size="sm">{tp("delete")}</SubmitButton>
+                      </form>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          {!canApprove && previews.some((v) => v.status === "PENDING_REVIEW") ? <p className="text-sm text-muted">{tp("cannotApprove")}</p> : <p className="text-xs text-muted">{tp("approveHint")}</p>}
+
+          {p.previewModelKey ? (
+            <div className="space-y-2 rounded-md border border-warning/40 bg-warning-soft p-3 text-sm">
+              <p>{tp("legacyGlb")}</p>
+              {canEdit ? <LegacyPreviewAudit productId={p.id} /> : null}
+            </div>
+          ) : null}
+          {turntableFrames > 0 ? (
+            <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
+              <p>{tp("turntableLegacy", { count: turntableFrames })}</p>
+              {canEdit ? (
+                <form action={clearTurntableAction}>
+                  <input type="hidden" name="productId" value={p.id} />
+                  <SubmitButton variant="ghost" size="sm">{tp("turntableRemove")}</SubmitButton>
+                </form>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       </Panel>
 
       <Panel title={t("sections.files")} id="files">

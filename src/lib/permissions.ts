@@ -31,8 +31,13 @@ export const PERMISSIONS = [
   "admins.manage",
   "audit.view",
   "payments.manage",
-  "deposits.verify",
+  // Confirming that money was received (deposits and full payments). This is
+  // what unlocks paid downloads and the deposit-gated fulfilment stages.
+  "payments.verify",
   "notifications.manage",
+  // Publishing an interactive 3D preview proxy. Operations can generate and
+  // upload candidates (products.edit); an Owner or Super Admin approves them.
+  "previews.approve",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -55,12 +60,20 @@ const OPERATIONS: readonly Permission[] = [
   "messages.view",
 ];
 
+/**
+ * Business decision (2026-10-12): only Owners confirm that a payment or deposit
+ * was received. Whether Super Admins may also do it was left open by the
+ * owners, so it stays OFF. Set this to true (a reviewed code change) to let
+ * Super Admins verify payments too; nothing else grants payments.verify.
+ */
+export const SUPER_ADMIN_MAY_VERIFY_PAYMENTS = false;
+
 const ROLE_PERMISSIONS: Record<AdminRole, ReadonlySet<Permission>> = {
   // Owners hold every permission. What sets them apart from Super Admins is
   // protection: owner accounts cannot be created, demoted, disabled or deleted
   // from the admin UI, and database triggers enforce the same (migration 0001).
   OWNER: new Set(PERMISSIONS),
-  SUPER_ADMIN: new Set(PERMISSIONS),
+  SUPER_ADMIN: new Set(PERMISSIONS.filter((p) => p !== "payments.verify" || SUPER_ADMIN_MAY_VERIFY_PAYMENTS)),
   OPERATIONS: new Set(OPERATIONS),
 };
 

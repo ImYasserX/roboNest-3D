@@ -9,7 +9,12 @@ export type TestPlatform = { env: CloudflareEnv; db: Database; dispose: () => Pr
 /** Boots in-memory D1 + R2 (Miniflare, same engine as production) and applies all migrations. */
 export async function startPlatform(): Promise<TestPlatform> {
   const proxy = await getPlatformProxy<CloudflareEnv>({ configPath: "wrangler.jsonc", persist: false });
-  const env = { ...proxy.env, APP_SECRET: "test-app-secret-at-least-32-characters-long", SITE_URL: "http://localhost:3000" } as CloudflareEnv;
+  // getPlatformProxy loads .dev.vars, which may hold REAL provider tokens.
+  // Tests must never see them: remove every provider credential and turn on
+  // the outbound kill switch. Tests pass fakes explicitly where needed.
+  const loaded = { ...proxy.env } as Record<string, unknown>;
+  for (const key of Object.keys(loaded)) if (/^(RESEND|TELEGRAM|TWILIO|WHATSAPP|FIB|CONTACT_FROM)_/.test(key)) delete loaded[key];
+  const env = { ...loaded, OUTBOUND_INTEGRATIONS: "disabled", APP_SECRET: "test-app-secret-at-least-32-characters-long", SITE_URL: "http://localhost:3000" } as unknown as CloudflareEnv;
   const dir = path.resolve("drizzle/migrations");
   for (const file of readdirSync(dir).filter((f) => f.endsWith(".sql")).sort()) {
     const sqlText = readFileSync(path.join(dir, file), "utf8");

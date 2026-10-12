@@ -10,7 +10,6 @@ import { getRequestMeta } from "@/server/request-meta";
 import { checkoutSchema, placeOrder } from "@/server/services/orders";
 import { consumeScoped } from "@/server/services/rate-limit";
 import { scheduleNotifications } from "@/server/notify";
-import { getDepositProvider } from "@/server/payments";
 import { eventIdsForOrder } from "@/server/services/notifications";
 
 export type CheckoutActionResult =
@@ -38,7 +37,7 @@ export async function placeOrderAction(raw: Record<string, unknown>): Promise<Ch
   if (!(await consumeScoped(db, "checkout", "checkoutIp", ownerKey, ipHash))) return { ok: false, error: "rate_limited" };
 
   const user = await getCurrentUser();
-  const result = await placeOrder(db, input, { owner, userId: user?.id ?? null, appSecret: await getAppSecret(), onlineDepositAvailable: (await getDepositProvider()) !== null });
+  const result = await placeOrder(db, input, { owner, userId: user?.id ?? null, appSecret: await getAppSecret() });
   if (!result.ok) {
     const fields: Record<string, string> = {};
     if (result.error === "address_required") for (const f of ["zoneId", "city", "district", "addressLine"]) if (!raw[f]) fields[f] = "invalid_input";

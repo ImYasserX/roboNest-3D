@@ -8,6 +8,7 @@ import {
   orderItems,
   orders,
   productImages,
+  previewModels,
   productOptions,
   productOptionValues,
   productRelations,
@@ -125,7 +126,8 @@ const cardColumns = {
   salePrice: products.salePrice,
   productionDaysMin: products.productionDaysMin,
   productionDaysMax: products.productionDaysMax,
-  previewModelKey: products.previewModelKey,
+  // An approved interactive preview proxy exists. The legacy GLB key is never selected for the storefront.
+  previewCount: sql<number>`(SELECT COUNT(*) FROM ${previewModels} WHERE ${qualified(previewModels.productId)} = ${qualified(products.id)} AND ${qualified(previewModels.status)} = 'APPROVED')`,
   optionCount: sql<number>`(SELECT COUNT(*) FROM ${productOptions} WHERE ${qualified(productOptions.productId)} = ${qualified(products.id)})`,
 };
 
@@ -159,7 +161,7 @@ async function toCards(db: Database, rows: CardRow[]): Promise<ProductCard[]> {
       productionDaysMin: r.productionDaysMin as number | null,
       productionDaysMax: r.productionDaysMax as number | null,
       isCustomizable: Number(r.optionCount) > 0 || r.productType === "CUSTOMIZABLE",
-      hasPreview: Boolean(r.previewModelKey),
+      hasPreview: Number(r.previewCount) > 0,
       image: img ? { key: img.r2Key, altEn: img.altEn, altAr: img.altAr, width: img.width, height: img.height } : null,
     };
   });
@@ -355,7 +357,7 @@ export async function getProductBySlug(db: Database, slug: string, opts: { inclu
     .limit(1);
   if (!row) return null;
 
-  const [images, optionRows, category, files] = await Promise.all([
+  const [images, optionRows, category, files, preview] = await Promise.all([
     db.select().from(productImages).where(eq(productImages.productId, row.id)).orderBy(asc(productImages.sortOrder), asc(productImages.createdAt)),
     db.select().from(productOptions).where(eq(productOptions.productId, row.id)).orderBy(asc(productOptions.sortOrder), asc(productOptions.createdAt)),
     db.select().from(categories).where(eq(categories.id, row.categoryId)).limit(1),
@@ -363,6 +365,12 @@ export async function getProductBySlug(db: Database, slug: string, opts: { inclu
       .select({ format: digitalFiles.format, sizeBytes: digitalFiles.sizeBytes })
       .from(digitalFiles)
       .where(and(eq(digitalFiles.productId, row.id), eq(digitalFiles.isActive, true))),
+    // Only the id of the approved proxy is exposed; never a storage key.
+    db
+      .select({ id: previewModels.id })
+      .from(previewModels)
+      .where(and(eq(previewModels.productId, row.id), eq(previewModels.status, "APPROVED")))
+      .limit(1),
   ]);
   const values = optionRows.length
     ? await db
@@ -384,6 +392,8 @@ export async function getProductBySlug(db: Database, slug: string, opts: { inclu
     category: cat,
     parentCategory: parent,
     digitalFormats: [...new Set(files.map((f) => f.format))],
+    /** The approved preview proxy (served by /api/previews/[id]), if any. */
+    preview: preview[0] && row.status === "PUBLISHED" ? { src: `/api/previews/${preview[0].id}` } : null,
   };
 }
 

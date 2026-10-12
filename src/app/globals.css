@@ -9,10 +9,9 @@
    pairs meet WCAG 2.2 AA (see TESTING.md).
    ========================================================================== */
 
-/* Theme selection (see components/layout/theme-toggle.tsx):
-   - <html data-theme="dark|light"> is an explicit choice from the rn_theme
-     cookie, rendered by the server, so the first paint is already correct;
-   - no attribute means "system": follow prefers-color-scheme.
+/* Theme selection (see components/layout/theme-toggle.tsx): two themes.
+   The server always renders <html data-theme="dark|light"> from the
+   rn_theme cookie (default dark), so the first paint is already correct.
    The admin area always pins data-theme="light" on its own wrapper. */
 :root,
 [data-theme="dark"] {
@@ -44,39 +43,6 @@
   --rn-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 12px 32px -12px rgb(0 0 0 / 0.6);
   --rn-glow: 0 0 0 1px rgb(164 118 255 / 0.35), 0 18px 40px -18px rgb(127 86 217 / 0.65);
   color-scheme: dark;
-}
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme]) {
-  --rn-bg: #f7f6fb;
-  --rn-surface: #ffffff;
-  --rn-surface-2: #f1eff7;
-  --rn-surface-3: #e7e3f1;
-  --rn-border: #e2deec;
-  --rn-border-strong: #8a849c;
-  --rn-text: #17131f;
-  --rn-text-muted: #595370;
-  --rn-primary: #7f56d9;
-  --rn-primary-hover: #6941c6;
-  --rn-primary-soft: rgb(127 86 217 / 0.1);
-  --rn-primary-text: #6941c6;
-  --rn-on-primary: #ffffff;
-  --rn-accent: #0f766e;
-  --rn-success: #166534;
-  --rn-success-soft: rgb(22 101 52 / 0.09);
-  --rn-warning: #92400e;
-  --rn-warning-soft: rgb(146 64 14 / 0.1);
-  --rn-danger: #9f1239;
-  --rn-danger-soft: rgb(159 18 57 / 0.08);
-  --rn-info: #075985;
-  --rn-info-soft: rgb(7 89 133 / 0.08);
-  --rn-focus: #6941c6;
-  --rn-overlay: rgb(23 19 31 / 0.5);
-  --rn-grid-line: rgb(127 86 217 / 0.06);
-  --rn-shadow: 0 1px 2px rgb(23 19 31 / 0.06), 0 12px 32px -14px rgb(23 19 31 / 0.18);
-  --rn-glow: 0 0 0 1px rgb(127 86 217 / 0.35), 0 18px 40px -18px rgb(127 86 217 / 0.45);
-  color-scheme: light;
-  }
 }
 
 [data-theme="light"] {
@@ -159,6 +125,35 @@ body {
   font-family: var(--font-sans);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * Admin dashboard: same identity, tuned for long working sessions. Success
+ * states use the mint/teal accent; the page sits on a slightly darker canvas
+ * so panels and tables stand out. Scoped to .admin-shell: the storefront is
+ * unchanged.
+ */
+.admin-shell {
+  --rn-success: #2dd4bf;
+  --rn-success-soft: rgb(45 212 191 / 0.13);
+  --rn-admin-canvas: #09070f;
+  --rn-admin-sidebar: #110e19;
+}
+:root[data-theme="light"] .admin-shell {
+  --rn-success: #0f766e;
+  --rn-success-soft: rgb(15 118 110 / 0.1);
+  --rn-admin-canvas: #f3f1f9;
+  --rn-admin-sidebar: #ffffff;
+}
+.admin-shell table thead th {
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--rn-text-muted);
+}
+:lang(ar) .admin-shell table thead th {
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 /* Arabic uses its own typeface for both body and display text. */

@@ -29,13 +29,12 @@ type Props = {
   hasDigital: boolean;
   signedIn: boolean;
   /** Whether a deposit can currently be paid (online provider or owner-approved manual fallback). */
-  depositPayable: boolean;
   initial: { fullName: string; phone: string; zoneId: string; areaId: string; city: string; district: string; addressLine: string; landmark: string };
 };
 
 const FIELD_ERROR_KEYS = ["invalid_phone", "zone_unavailable", "area_unavailable"];
 
-export function CheckoutForm({ idempotencyKey, zones, subtotal, hasPhysical, hasDigital, signedIn, depositPayable, initial }: Props) {
+export function CheckoutForm({ idempotencyKey, zones, subtotal, hasPhysical, hasDigital, signedIn, initial }: Props) {
   const t = useTranslations("checkout");
   const tc = useTranslations("common");
   const tcart = useTranslations("cart");
@@ -56,7 +55,7 @@ export function CheckoutForm({ idempotencyKey, zones, subtotal, hasPhysical, has
   const total = subtotal - Math.min(discountAmount, subtotal) + (fee ?? 0);
   const needsDeposit = requiresDeposit(depositBase(subtotal, discountAmount));
   // Preview of the server rule: 30% of the products subtotal after discount (rounded down).
-  const deposit = needsDeposit && depositPayable ? depositAmountFor(depositBase(subtotal, discountAmount)) : null;
+  const deposit = needsDeposit ? depositAmountFor(depositBase(subtotal, discountAmount)) : null;
 
   const set = (key: keyof typeof values) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const value = e.target.type === "checkbox" ? (e.target as HTMLInputElement).checked : e.target.value;
@@ -166,16 +165,13 @@ export function CheckoutForm({ idempotencyKey, zones, subtotal, hasPhysical, has
               </span>
               <span className="block text-sm text-muted">{t("codText")}</span>
               {hasDigital ? <span className="mt-1 block text-sm text-muted">{t("codDigital")}</span> : null}
+              <span className="mt-1 block text-sm text-muted">{t("whatsappStep")}</span>
             </span>
           </label>
           {needsDeposit ? (
-            !depositPayable ? (
-              <Alert tone="warning" title={t("depositUnavailableTitle")}>{t("depositUnavailableText", { threshold: formatIQD(DEPOSIT_THRESHOLD_IQD, locale) })}</Alert>
-            ) : (
-              <Alert tone="warning" title={t("depositTitle")}>
-                {t("depositText", { threshold: formatIQD(DEPOSIT_THRESHOLD_IQD, locale), amount: formatIQD(deposit ?? 0, locale) })}
-              </Alert>
-            )
+            <Alert tone="warning" title={t("depositTitle")}>
+              {t("depositText", { threshold: formatIQD(DEPOSIT_THRESHOLD_IQD, locale), amount: formatIQD(deposit ?? 0, locale) })}
+            </Alert>
           ) : null}
           <TextAreaField id="orderNotes" label={t("orderNotes")} optionalLabel={tc("optional")} rows={2} value={values.orderNotes} onChange={set("orderNotes")} maxLength={500} className="min-h-20" />
         </fieldset>

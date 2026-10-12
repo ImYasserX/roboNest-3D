@@ -50,30 +50,9 @@ export function orderPlacedEvent(db: Database, order: OrderEventInput, now = new
   });
 }
 
-export function depositSubmittedEvent(db: Database, order: { id: string; orderNumber: string; total: number; depositAmount: number; method: string }, submission: number, now = new Date(), eventId = crypto.randomUUID()) {
-  return db.insert(notificationEvents).values({
-    id: eventId,
-    kind: "DEPOSIT_SUBMITTED",
-    dedupeKey: `DEPOSIT_SUBMITTED:${order.id}:${submission}`,
-    orderId: order.id,
-    payload: { orderNumber: order.orderNumber, total: order.total, depositAmount: order.depositAmount, method: order.method },
-    nextAttemptAt: now,
-    createdAt: now,
-    updatedAt: now,
-  });
-}
-
-export function depositPaidEvent(db: Database, order: { id: string; orderNumber: string; total: number; depositAmount: number; providerPaymentId: string }, now = new Date()) {
-  return db.insert(notificationEvents).values({
-    kind: "DEPOSIT_PAID",
-    dedupeKey: `DEPOSIT_PAID:${order.id}:${order.providerPaymentId}`,
-    orderId: order.id,
-    payload: { orderNumber: order.orderNumber, total: order.total, depositAmount: order.depositAmount, method: "FIB" },
-    nextAttemptAt: now,
-    createdAt: now,
-    updatedAt: now,
-  });
-}
+// DEPOSIT_SUBMITTED / DEPOSIT_PAID events came from the retired customer
+// reference form and FIB adapter. No new ones are created; existing rows
+// still render below.
 
 const iqd = (n: unknown) => `${Number(n).toLocaleString("en-US")} IQD`;
 const ORDER_TYPES: Record<string, string> = {
@@ -105,12 +84,12 @@ export function renderNotification(kind: NotificationKind, payload: Record<strin
     ].filter(Boolean).join("\n");
   }
   const deposit = payload.depositRequired
-    ? `Deposit required: ${iqd(payload.depositAmount)} (30%), awaiting payment. Do not start production before it is verified.`
+    ? `Deposit required: ${iqd(payload.depositAmount)} (30%), to be paid via WhatsApp. Do not start production before an owner has confirmed it in the admin.`
     : "No deposit required.";
   return [
     `New order ${payload.orderNumber}`,
     `Order value: ${iqd(payload.total)} (includes delivery ${iqd(payload.deliveryFee)})`,
-    `Payment: cash on delivery. ${deposit}`,
+    `Payment: manual (customer contacts us on WhatsApp; physical items can be paid on delivery). Nothing counts as paid until an owner confirms it. ${deposit}`,
     `Type: ${ORDER_TYPES[String(payload.orderType)] ?? String(payload.orderType)}`,
     link ? `Admin: ${link}` : "",
   ].filter(Boolean).join("\n");
@@ -193,6 +172,19 @@ export async function dispatchNotification(
     .where(eq(notificationEvents.id, eventId));
   if (!allSent) console.error("notification delivery failed", { eventId, kind: event.kind, attempts, retryable });
   return allSent ? "sent" : "failed";
+}
+
+/**
+ * Marks events as SUPPRESSED (terminal, never retried automatically). Used
+ * while OUTBOUND_INTEGRATIONS=disabled, so alerts about E2E/test orders can
+ * never be delivered later once real credentials are present.
+ */
+export async function suppressNotifications(db: Database, eventIds: string[], now = Date.now()) {
+  if (eventIds.length === 0) return;
+  await db
+    .update(notificationEvents)
+    .set({ status: "SUPPRESSED", nextAttemptAt: null, lockedUntil: null, lastError: "Not sent: outbound integrations were disabled (OUTBOUND_INTEGRATIONS=disabled)", updatedAt: new Date(now) })
+    .where(and(inArray(notificationEvents.id, eventIds), inArray(notificationEvents.status, ["PENDING", "NOT_CONFIGURED", "FAILED"])));
 }
 
 /** Delivers the given events, then a few overdue retries. Never throws. */

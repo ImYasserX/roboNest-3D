@@ -9,8 +9,8 @@ export function merge(...meshes: Mesh[]): Mesh {
   const out: Mesh = { positions: [], indices: [] };
   for (const m of meshes) {
     const offset = out.positions.length;
-    out.positions.push(...m.positions);
-    out.indices.push(...m.indices.map((i) => i + offset));
+    for (const v of m.positions) out.positions.push(v);
+    for (const i of m.indices) out.indices.push(i + offset);
   }
   return out;
 }
@@ -168,4 +168,35 @@ export function flatten(m: Mesh) {
     normals.push(...n, ...n, ...n);
   }
   return { positions: new Float32Array(positions), normals: new Float32Array(normals) };
+}
+
+/**
+ * Midpoint subdivision (each triangle → 4) until at least `minTriangles`.
+ * Same shape, more triangles: lets the seed's paid sample files look like
+ * real exports (which have tens of thousands of triangles).
+ */
+export function subdivide(m: Mesh, minTriangles: number): Mesh {
+  let cur = m;
+  while (cur.indices.length / 3 < minTriangles) {
+    const positions = cur.positions.slice();
+    const mid = new Map<string, number>();
+    const midpoint = (a: number, b: number) => {
+      const key = a < b ? `${a},${b}` : `${b},${a}`;
+      let i = mid.get(key);
+      if (i === undefined) {
+        const p = cur.positions[a], q = cur.positions[b];
+        i = positions.push([(p[0] + q[0]) / 2, (p[1] + q[1]) / 2, (p[2] + q[2]) / 2]) - 1;
+        mid.set(key, i);
+      }
+      return i;
+    };
+    const indices: number[] = [];
+    for (let t = 0; t < cur.indices.length; t += 3) {
+      const [a, b, c] = [cur.indices[t], cur.indices[t + 1], cur.indices[t + 2]];
+      const ab = midpoint(a, b), bc = midpoint(b, c), ca = midpoint(c, a);
+      indices.push(a, ab, ca, ab, b, bc, ca, bc, c, ab, bc, ca);
+    }
+    cur = { positions, indices };
+  }
+  return cur;
 }

@@ -25,10 +25,12 @@
     "telegram:check": "node scripts/telegram-test.mjs --check",
     "telegram:test": "node scripts/telegram-test.mjs",
     "email:check": "node scripts/resend-check.mjs",
-    "email:test": "node scripts/resend-check.mjs --send"
+    "email:test": "node scripts/resend-check.mjs --send",
+    "preview:proxy": "tsx scripts/make-preview-proxy.ts",
+    "admin:reset": "tsx --conditions=react-server scripts/reset-admin-password.ts"
   },
   "dependencies": {
-    "@google/model-viewer": "^4.3.1",
+    "@google/model-viewer": "4.3.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.3",
     "next": "16.3.6",

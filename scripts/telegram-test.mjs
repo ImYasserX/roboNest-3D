@@ -9,9 +9,13 @@
 // .dev.vars (the token can also be typed at a hidden prompt). To test the
 // production values, run it with the same token at the prompt and
 // TELEGRAM_CHAT_IDS=... in the environment.
-import { botApi, botToken, devVar, parseChatIds } from "./lib/telegram-cli.mjs";
+import { botApi, botToken, devVar, outboundDisabled, parseChatIds } from "./lib/telegram-cli.mjs";
 
 const checkOnly = process.argv.includes("--check");
+if (!checkOnly && outboundDisabled()) {
+  console.error("OUTBOUND_INTEGRATIONS=disabled is set, so no message was sent. To send this one test, run:\n  OUTBOUND_INTEGRATIONS=enabled npm run telegram:test");
+  process.exit(1);
+}
 const rawIds = process.env.TELEGRAM_CHAT_IDS || devVar("TELEGRAM_CHAT_IDS") || process.env.TELEGRAM_CHAT_ID || devVar("TELEGRAM_CHAT_ID");
 const { ids, invalid } = parseChatIds(rawIds);
 if (invalid.length) console.error(`Ignoring ${invalid.length} invalid entr${invalid.length === 1 ? "y" : "ies"} in TELEGRAM_CHAT_IDS. The app ignores them too; fix the value.`);

@@ -5,6 +5,7 @@ import { getDb } from "@/server/db/client";
 import { parsePeriod } from "@/server/admin-period";
 import { listOrdersAdmin } from "@/server/services/admin-orders";
 import { getDashboard } from "@/server/services/analytics";
+import { getOperationsOverview } from "@/server/services/admin-overview";
 import { hasPermission } from "@/lib/permissions";
 import { formatIQD } from "@/lib/money";
 import { formatDate } from "@/lib/localize";
@@ -15,6 +16,9 @@ import { Stat } from "@/components/admin/stat";
 import { DataTable } from "@/components/admin/table";
 import { AdminPageHeader, Panel } from "@/components/admin/ui";
 import { Badge } from "@/components/ui/misc";
+import { ButtonLink } from "@/components/ui/button";
+import { PlusIcon, SlidersIcon, WalletIcon } from "@/components/ui/icons";
+import { orderStatusTone } from "@/lib/status-tone";
 import { chartSummary } from "@/lib/chart-summary";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/admin">): Promise<Metadata> {
@@ -31,7 +35,10 @@ export default async function AdminDashboard({ params, searchParams }: PageProps
   const days = parsePeriod((await searchParams).days);
   const db = await getDb();
   const canProfit = hasPermission(admin.role, "analytics.profit");
-  const [d, recent] = await Promise.all([getDashboard(db, days, { includeProfit: canProfit }), listOrdersAdmin(db, {})]);
+  const [d, recent, ops] = await Promise.all([getDashboard(db, days, { includeProfit: canProfit }), listOrdersAdmin(db, {}), getOperationsOverview(db)]);
+  const canPayments = hasPermission(admin.role, "payments.manage");
+  const canProducts = hasPermission(admin.role, "products.edit");
+  const awaiting = ops.payments.awaitingDeposit + ops.payments.awaitingFull;
   const iqd = (n: number) => formatIQD(n, lang);
   const num = (n: number) => new Intl.NumberFormat(lang === "ar" ? "ar-IQ-u-nu-latn" : "en-US").format(n);
   const requests = Object.values(d.customRequests).reduce((a, b) => a + b, 0);
@@ -39,9 +46,38 @@ export default async function AdminDashboard({ params, searchParams }: PageProps
 
   return (
     <div className="space-y-6">
-      <AdminPageHeader title={t("title")}>
-        <PeriodSelect action={`/${locale}/admin`} value={days} />
+      <AdminPageHeader title={t("title")} description={t("welcome", { name: admin.displayName })}>
+        {canProducts ? <ButtonLink href="/admin/products/new" variant="secondary"><PlusIcon size={16} /> {t("newProduct")}</ButtonLink> : null}
+        {canProducts ? <ButtonLink href="/admin/products?manage=1" variant="secondary"><SlidersIcon size={16} /> {t("bulkProducts")}</ButtonLink> : null}
+        {canPayments ? <ButtonLink href="/admin/payments"><WalletIcon size={16} /> {t("verifyPayments")}</ButtonLink> : null}
       </AdminPageHeader>
+
+      <section aria-labelledby="attention" className="space-y-3">
+        <h2 id="attention" className="font-display text-lg font-semibold">{t("attention")}</h2>
+        <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Stat label={t("awaitingPayments")} value={num(awaiting)} tone={awaiting > 0 ? "warning" : "success"} hint={t("awaitingPaymentsHint", { deposits: num(ops.payments.awaitingDeposit), full: num(ops.payments.awaitingFull) })} href={canPayments ? "/admin/payments?view=awaiting" : undefined} />
+          <Stat label={t("outstandingDeposits")} value={iqd(ops.outstandingDeposits.amount)} tone={ops.outstandingDeposits.count > 0 ? "warning" : "neutral"} hint={t("outstandingDepositsHint", { count: num(ops.outstandingDeposits.count) })} href={canPayments ? "/admin/payments?view=awaiting&kind=DEPOSIT" : undefined} />
+          <Stat label={t("disputedPayments")} value={num(ops.payments.disputed)} tone={ops.payments.disputed > 0 ? "danger" : "neutral"} href={canPayments ? "/admin/payments?view=disputed" : undefined} />
+          <Stat label={t("previewsPending")} value={num(ops.previewsPending)} tone={ops.previewsPending > 0 ? "primary" : "neutral"} hint={t("draftProducts", { count: num(ops.draftProducts) })} href={canProducts ? "/admin/digital-files?tab=previews" : undefined} />
+        </dl>
+        {ops.openByStatus.length ? (
+          <ul className="flex flex-wrap gap-2" aria-label={t("openByStatus")}>
+            {ops.openByStatus.map((s) => (
+              <li key={s.status}>
+                <Link href={`/admin/orders?status=${s.status}`} className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-sm hover:border-primary/50">
+                  <Badge tone={orderStatusTone(s.status)}>{ts(`order.${s.status}`)}</Badge>
+                  <span className="ltr-nums font-semibold">{num(s.count)}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </section>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
+        <h2 className="font-display text-lg font-semibold">{t("performance")}</h2>
+        <PeriodSelect action={`/${locale}/admin`} value={days} />
+      </div>
 
       <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label={t("goodsRevenue")} value={iqd(d.goodsRevenue)} hint={t("goodsRevenueHint")} />
@@ -76,7 +112,8 @@ export default async function AdminDashboard({ params, searchParams }: PageProps
           columns={[
             { key: "n", header: "#", cell: (r) => <Link href={`/admin/orders/${r.id}`} className="ltr-nums font-semibold text-primary-text underline">{r.orderNumber}</Link> },
             { key: "c", header: to("customer"), cell: (r) => r.customerName },
-            { key: "s", header: tc("status"), cell: (r) => <Badge tone={r.status === "PENDING" ? "warning" : r.status === "DELIVERED" ? "success" : r.status === "CANCELLED" ? "danger" : "primary"}>{ts(`order.${r.status}`)}</Badge> },
+            { key: "s", header: tc("status"), cell: (r) => <Badge tone={orderStatusTone(r.status)}>{ts(`order.${r.status}`)}</Badge> },
+            { key: "p", header: to("payment"), cell: (r) => <Badge tone={r.paymentStatus === "PAID" ? "success" : r.paymentStatus === "DISPUTED" ? "danger" : "neutral"}>{ts(`payment.${r.paymentStatus}`)}</Badge> },
             { key: "d", header: tc("date"), cell: (r) => formatDate(r.createdAt, lang, true) },
             { key: "t", header: tc("total"), align: "end", cell: (r) => <span className="ltr-nums">{iqd(r.total)}</span> },
           ]}

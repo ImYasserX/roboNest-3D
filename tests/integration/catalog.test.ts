@@ -8,7 +8,7 @@ import { listCustomers } from "@/server/services/customers";
 import { getDashboard } from "@/server/services/analytics";
 import { changeOrderStatus } from "@/server/services/admin-orders";
 import { listOrdersForUser, placeOrder } from "@/server/services/orders";
-import { saveSetting } from "@/server/services/settings";
+import { getSetting, saveSetting } from "@/server/services/settings";
 import { startPlatform, type TestPlatform } from "../support/platform";
 import { checkoutInput, makeCategory, makeProduct, makeUser, makeZone } from "../support/fixtures";
 
@@ -132,11 +132,14 @@ describe("analytics", () => {
 });
 
 describe("settings validation", () => {
-  it("rejects invalid phones, non-https URLs and script-like values", async () => {
+  it("rejects non-https URLs and script-like values; the WhatsApp number cannot be overridden by settings", async () => {
     const actorX = { adminId: null, label: "x" };
-    const store = { whatsapp: "12345", phone: "", email: "", instagram: "", facebook: "", address: { en: "", ar: "" }, hours: { en: "", ar: "" } };
-    expect((await saveSetting(p.db, "store", store, actorX)).ok).toBe(false);
-    expect((await saveSetting(p.db, "store", { ...store, whatsapp: "07701234567", instagram: "javascript:alert(1)" }, actorX)).ok).toBe(false);
-    expect((await saveSetting(p.db, "store", { ...store, whatsapp: "07701234567", instagram: "https://instagram.com/robonest" }, actorX)).ok).toBe(true);
+    const store = { instagram: "", facebook: "", address: { en: "", ar: "" } };
+    expect((await saveSetting(p.db, "store", { ...store, instagram: "javascript:alert(1)" }, actorX)).ok).toBe(false);
+    // A stray whatsapp value (e.g. from an old row or a tampered form) is dropped, not stored.
+    expect((await saveSetting(p.db, "store", { ...store, whatsapp: "07700000000", instagram: "https://instagram.com/robonest" }, actorX)).ok).toBe(true);
+    const saved = await getSetting(p.db, "store");
+    expect(saved).not.toHaveProperty("whatsapp");
+    expect(saved.instagram).toBe("https://instagram.com/robonest");
   });
 });

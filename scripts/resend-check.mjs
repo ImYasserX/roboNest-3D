@@ -22,11 +22,20 @@ function fileVar(file, name) {
 }
 const sources = {};
 function value(name) {
-  if (process.env[name]) return (sources[name] = "environment"), process.env[name];
+  if (process.env[name]) {
+    sources[name] = "environment";
+    return process.env[name];
+  }
   const dv = fileVar(".dev.vars", name);
-  if (dv) return (sources[name] = ".dev.vars"), dv;
+  if (dv) {
+    sources[name] = ".dev.vars";
+    return dv;
+  }
   const el = fileVar(".env.local", name);
-  if (el) return (sources[name] = ".env.local"), el;
+  if (el) {
+    sources[name] = ".env.local";
+    return el;
+  }
   return undefined;
 }
 function wranglerVar(name) {
@@ -61,18 +70,29 @@ const to = args.includes("--to") ? args[args.indexOf("--to") + 1] : undefined;
 
 const apiKey = value("RESEND_API_KEY");
 const from = value("CONTACT_FROM_EMAIL");
-const recipient = value("CONTACT_FORM_EMAIL") ?? ((sources.CONTACT_FORM_EMAIL = "wrangler.jsonc vars"), wranglerVar("CONTACT_FORM_EMAIL"));
+let recipient = value("CONTACT_FORM_EMAIL");
+if (!recipient) {
+  sources.CONTACT_FORM_EMAIL = "wrangler.jsonc vars";
+  recipient = wranglerVar("CONTACT_FORM_EMAIL");
+}
 const problems = [];
 const ok = (m) => console.log(`  OK    ${m}`);
-const bad = (m) => (problems.push(m), console.log(`  FAIL  ${m}`));
+const bad = (m) => {
+  problems.push(m);
+  console.log(`  FAIL  ${m}`);
+};
 const note = (m) => console.log(`  NOTE  ${m}`);
 
 console.log("Variables");
-apiKey ? ok(`RESEND_API_KEY set (${sources.RESEND_API_KEY}; value hidden)`) : bad("RESEND_API_KEY missing");
+if (apiKey) ok(`RESEND_API_KEY set (${sources.RESEND_API_KEY}; value hidden)`);
+else bad("RESEND_API_KEY missing");
 if (apiKey && !/^re_[A-Za-z0-9_]{10,}$/.test(apiKey)) bad("RESEND_API_KEY does not look like a Resend key (re_...)");
-recipient === "contact@robonest.tech" ? ok(`CONTACT_FORM_EMAIL = contact@robonest.tech (${sources.CONTACT_FORM_EMAIL})`) : bad(`CONTACT_FORM_EMAIL should be contact@robonest.tech (found: ${recipient ?? "nothing"})`);
+if (recipient === "contact@robonest.tech") ok(`CONTACT_FORM_EMAIL = contact@robonest.tech (${sources.CONTACT_FORM_EMAIL})`);
+else bad(`CONTACT_FORM_EMAIL should be contact@robonest.tech (found: ${recipient ?? "nothing"})`);
 const sender = from ? senderAddress(from) : null;
-!from ? bad("CONTACT_FROM_EMAIL missing") : !sender ? bad("CONTACT_FROM_EMAIL is not name@domain or Name <name@domain>") : ok(`CONTACT_FROM_EMAIL = ${from} (${sources.CONTACT_FROM_EMAIL})`);
+if (!from) bad("CONTACT_FROM_EMAIL missing");
+else if (!sender) bad("CONTACT_FROM_EMAIL is not name@domain or Name <name@domain>");
+else ok(`CONTACT_FROM_EMAIL = ${from} (${sources.CONTACT_FROM_EMAIL})`);
 if (sender && recipient && sender.toLowerCase() === recipient.toLowerCase()) bad("CONTACT_FROM_EMAIL must be separate from CONTACT_FORM_EMAIL; use e.g. RoboNest.3D <no-reply@robonest.tech> (the app refuses to send otherwise)");
 for (const n of ["RESEND_API_KEY", "CONTACT_FROM_EMAIL"]) {
   if (sources[n] === ".env.local") note(`${n} comes from .env.local. Move it to .dev.vars: .env* values are copied into build bundles and npm run cf:build refuses them.`);
@@ -83,16 +103,21 @@ if (domain) {
   console.log(`\nPublic DNS for ${domain} (read-only lookups)`);
   const txt = async (h) => (await doh(h, "TXT")).map((d) => d.replace(/^"|"$/g, "").replace(/"\s*"/g, ""));
   const mx = async (h) => (await doh(h, "MX")).map((d) => d.split(/\s+/).pop());
-  (await txt(`resend._domainkey.${domain}`)).some((t) => t.includes("p=")) ? ok(`DKIM resend._domainkey.${domain} present`) : bad(`DKIM resend._domainkey.${domain} missing`);
-  (await txt(`send.${domain}`)).some((t) => t.startsWith("v=spf1") && t.includes("amazonses.com")) ? ok(`SPF on send.${domain} present`) : bad(`SPF on send.${domain} missing`);
-  (await mx(`send.${domain}`)).some((h) => h.includes("amazonses.com")) ? ok(`MX (bounce/return path) on send.${domain} present`) : bad(`MX on send.${domain} missing`);
+  if ((await txt(`resend._domainkey.${domain}`)).some((t) => t.includes("p="))) ok(`DKIM resend._domainkey.${domain} present`);
+  else bad(`DKIM resend._domainkey.${domain} missing`);
+  if ((await txt(`send.${domain}`)).some((t) => t.startsWith("v=spf1") && t.includes("amazonses.com"))) ok(`SPF on send.${domain} present`);
+  else bad(`SPF on send.${domain} missing`);
+  if ((await mx(`send.${domain}`)).some((h) => h.includes("amazonses.com"))) ok(`MX (bounce/return path) on send.${domain} present`);
+  else bad(`MX on send.${domain} missing`);
   const dmarc = (await txt(`_dmarc.${domain}`)).find((t) => t.startsWith("v=DMARC1"));
-  dmarc ? ok(`DMARC present (${/p=\w+/.exec(dmarc)?.[0] ?? "policy?"})`) : note("no DMARC record (recommended, not required)");
+  if (dmarc) ok(`DMARC present (${/p=\w+/.exec(dmarc)?.[0] ?? "policy?"})`);
+  else note("no DMARC record (recommended, not required)");
 }
 const rdomain = recipient?.split("@")[1];
 if (rdomain) {
   const inbound = (await doh(rdomain, "MX")).map((d) => d.split(/\s+/).pop().replace(/\.$/, ""));
-  inbound.length ? ok(`inbound MX for ${rdomain}: ${inbound.join(", ")}`) : bad(`no inbound MX for ${rdomain}: contact@ cannot receive mail`);
+  if (inbound.length) ok(`inbound MX for ${rdomain}: ${inbound.join(", ")}`);
+  else bad(`no inbound MX for ${rdomain}: contact@ cannot receive mail`);
   if (inbound.some((h) => h.includes("porkbun"))) note(`inbound mail uses Porkbun email forwarding: confirm in Porkbun that ${recipient} forwards to an inbox you read (DNS cannot show this)`);
 }
 
@@ -107,7 +132,8 @@ if (apiKey && domain) {
     const d = list.find((x) => x.name === domain);
     if (!d) bad(`${domain} is not a domain in this Resend account`);
     else {
-      d.status === "verified" ? ok(`Resend reports ${domain} as verified (region ${d.region})`) : bad(`Resend reports ${domain} as "${d.status}" (region ${d.region})`);
+      if (d.status === "verified") ok(`Resend reports ${domain} as verified (region ${d.region})`);
+      else bad(`Resend reports ${domain} as "${d.status}" (region ${d.region})`);
       const detail = await fetch(`https://api.resend.com/domains/${d.id}`, { headers: { Authorization: `Bearer ${apiKey}` }, signal: AbortSignal.timeout(10_000) }).then((r) => r.json()).catch(() => null);
       for (const r of detail?.records ?? []) console.log(`        ${String(r.record).padEnd(6)} ${String(r.type).padEnd(4)} ${String(r.name).padEnd(22)} ${r.status}`);
     }
@@ -120,6 +146,10 @@ if (!send) {
 }
 
 // ---- One controlled send -------------------------------------------------------
+if ((process.env.OUTBOUND_INTEGRATIONS ?? fileVar(".dev.vars", "OUTBOUND_INTEGRATIONS")) === "disabled") {
+  console.error("\nOUTBOUND_INTEGRATIONS=disabled is set, so nothing was sent. To send this one test, run:\n  OUTBOUND_INTEGRATIONS=enabled npm run email:test -- --to <your inbox>");
+  process.exit(1);
+}
 if (!to || !PLAIN.test(to)) {
   console.error("\n--send needs --to <an inbox you control>. Nothing was sent.");
   process.exit(1);

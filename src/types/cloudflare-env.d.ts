@@ -3,11 +3,11 @@ import type { D1Database, R2Bucket } from "@cloudflare/workers-types";
 declare global {
   interface CloudflareEnv {
     DB: D1Database;
-    /** Public catalog media (images, GLB previews). */
+    /** Public catalog media: raster images only (product photos, turntable frames). */
     MEDIA: R2Bucket;
     /** Private files: digital products and customer uploads. */
     PRIVATE_FILES: R2Bucket;
-    /** Absolute public origin, e.g. https://3d.robonest.iq (no trailing slash). */
+    /** Absolute public origin, e.g. https://robonest3d.tech once purchased; http://localhost:3000 locally (no trailing slash). */
     SITE_URL?: string;
     /** Server-only secret (>= 32 chars). Keys TOTP-secret encryption and IP hashing. */
     APP_SECRET?: string;
@@ -32,6 +32,8 @@ declare global {
     FIB_BASE_URL?: string;
     FIB_CLIENT_ID?: string;
     FIB_CLIENT_SECRET?: string;
+    /** "disabled" hides every provider credential (E2E, tests, quiet local work). */
+    OUTBOUND_INTEGRATIONS?: string;
   }
 }
 

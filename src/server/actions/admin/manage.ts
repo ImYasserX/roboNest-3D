@@ -144,7 +144,6 @@ export async function saveHomepageAction(_prev: State, formData: FormData): Prom
 export async function saveStoreAction(_prev: State, formData: FormData): Promise<State> {
   const f = formObject(formData);
   const value = {
-    whatsapp: f.whatsapp ?? "",
     instagram: f.instagram ?? "",
     facebook: f.facebook ?? "",
     address: { en: f.addressEn ?? "", ar: f.addressAr ?? "" },
@@ -152,7 +151,7 @@ export async function saveStoreAction(_prev: State, formData: FormData): Promise
   const res = await withAdmin("content.edit", ({ db, actor }) => saveSetting(db, "store", value, actor));
   if (!res.ok && "issues" in res) {
     const issue = res.issues?.[0] ?? "";
-    return { error: issue.startsWith("whatsapp") ? "invalid_phone" : issue === "instagram" || issue === "facebook" ? "invalid_url" : "invalid_input" };
+    return { error: issue === "instagram" || issue === "facebook" ? "invalid_url" : "invalid_input" };
   }
   return done(res);
 }
@@ -211,18 +210,12 @@ export async function savePaymentsAction(_prev: State, formData: FormData): Prom
   if (DEPOSIT_METHODS.some((m) => methods[m].enabled && (!methods[m].instructions.en.trim() || !methods[m].instructions.ar.trim()))) {
     return { error: "instructions_required" };
   }
-  const wantManual = formData.get("manualApproved") === "on";
+  // The stored manualFallback approval (from the retired fallback switch) is
+  // kept as history; it no longer gates anything.
   return done(
-    await withAdmin("payments.manage", async ({ db, actor, admin }) => {
+    await withAdmin("payments.manage", async ({ db, actor }) => {
       const current = await getSetting(db, "payments");
-      let manualFallback = current.manualFallback;
-      if (wantManual !== current.manualFallback.approved) {
-        // Approving (or withdrawing) the manual fallback is an OWNER decision.
-        if (admin.role !== "OWNER") return { ok: false as const, error: "owner_required" };
-        manualFallback = wantManual ? { approved: true, approvedBy: admin.displayName, approvedAt: new Date().toISOString() } : { approved: false, approvedBy: null, approvedAt: null };
-        await writeAudit(db, actor, { action: wantManual ? "payments.manualFallback.approved" : "payments.manualFallback.revoked", targetType: "setting", targetId: "payments" });
-      }
-      return saveSetting(db, "payments", { manualFallback, methods }, actor);
+      return saveSetting(db, "payments", { manualFallback: current.manualFallback, methods }, actor);
     }),
   );
 }

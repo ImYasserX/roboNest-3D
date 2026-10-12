@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { requireAdminPage } from "@/server/auth/current";
 import { getDb } from "@/server/db/client";
-import { getEnv, getServerVar, getSiteUrl } from "@/server/env";
+import { getEnv, getServerVar, getSiteUrl, outboundIntegrationsDisabled } from "@/server/env";
 import { saveSecurityAction, sendTestEmailAction } from "@/server/actions/admin/manage";
 import { contactEmailStatus } from "@/server/email-config";
 import { getSetting } from "@/server/services/settings";
@@ -42,7 +42,7 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/admi
   setRequestLocale(locale);
   await requireAdminPage(locale, "settings.edit");
   const [t, tc] = await Promise.all([getTranslations("admin.settings"), getTranslations("admin.common")]);
-  const [security, siteUrl, env, integrations, email] = await Promise.all([getSetting(await getDb(), "security"), getSiteUrl(), getEnv(), integrationStatus(), contactEmailStatus()]);
+  const [security, siteUrl, env, integrations, email, outboundOff] = await Promise.all([getSetting(await getDb(), "security"), getSiteUrl(), getEnv(), integrationStatus(), contactEmailStatus(), outboundIntegrationsDisabled()]);
   return (
     <div className="max-w-3xl space-y-6">
       <AdminPageHeader title={t("title")} />
@@ -71,6 +71,7 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/admi
         {/* Only non-secret facts are shown; secret values never leave the server. */}
         <dl className="space-y-2 text-sm">
           <div className="flex justify-between gap-3"><dt className="text-muted">{t("siteUrl")}</dt><dd dir="ltr">{siteUrl}</dd></div>
+          <div className="flex justify-between gap-3"><dt className="text-muted">{t("outbound")}</dt><dd>{outboundOff ? t("outboundOff") : t("outboundOn")}</dd></div>
           <div className="flex justify-between gap-3"><dt className="text-muted">{t("secretStatus")}</dt><dd>{env.APP_SECRET && env.APP_SECRET.length >= 32 ? tc("yes") : tc("no")}</dd></div>
           {integrations.map((i) => (
             <div key={i.key} className="flex justify-between gap-3">

@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { ADMIN, CUSTOMER } from "./fixtures";
 import { BASE_URL } from "../playwright.config";
 
-const PAGES = ["", "/products", "/products/rover-chassis-plate", "/categories", "/custom-printing", "/cart", "/login", "/register", "/contact", "/faq", "/delivery", "/payment", "/returns", "/privacy", "/terms", "/admin/login"];
+const PAGES = ["", "/products", "/products/rover-chassis-plate", "/products/planetary-gearbox-model", "/categories", "/custom-printing", "/cart", "/login", "/register", "/contact", "/faq", "/about", "/delivery", "/payment", "/returns", "/privacy", "/terms", "/admin/login"];
 
 for (const locale of ["en", "ar"]) {
   for (const path of PAGES) {

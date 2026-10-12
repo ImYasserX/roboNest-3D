@@ -52,5 +52,6 @@ next-env.d.ts
 /e2e/.artifacts/
 .admin-insert.sql
 .owner-*.sql
+.admin-reset.sql
 backup-*.sql
 restore-test/

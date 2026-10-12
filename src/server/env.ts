@@ -44,6 +44,10 @@ export const isProduction = process.env.NODE_ENV === "production";
  */
 export async function getServerVar(name: ServerVarName): Promise<string | undefined> {
   const env = (await getEnv()) as unknown as Record<string, unknown>;
+  // Kill switch for automated runs: with OUTBOUND_INTEGRATIONS=disabled no
+  // provider credential is visible, so nothing can reach Resend, Telegram,
+  // Twilio, WhatsApp or FIB, whatever .dev.vars or the shell contains.
+  if (OUTBOUND_SECRET_NAMES.has(name) && outboundDisabled(env)) return undefined;
   const fromBinding = env[name];
   const fallback = process.env.NODE_ENV === "development" ? process.env[name] : undefined;
   const value = typeof fromBinding === "string" && fromBinding ? fromBinding : fallback;
@@ -71,6 +75,32 @@ export type ServerVarName =
   | "FIB_BASE_URL"
   | "FIB_CLIENT_ID"
   | "FIB_CLIENT_SECRET";
+
+/** Credentials that let the app talk to an external provider. */
+export const OUTBOUND_SECRET_NAMES: ReadonlySet<ServerVarName> = new Set<ServerVarName>([
+  "RESEND_API_KEY",
+  "TELEGRAM_BOT_TOKEN",
+  "TELEGRAM_CHAT_IDS",
+  "TELEGRAM_CHAT_ID",
+  "TWILIO_ACCOUNT_SID",
+  "TWILIO_AUTH_TOKEN",
+  "TWILIO_VERIFY_SERVICE_SID",
+  "WHATSAPP_ACCESS_TOKEN",
+  "WHATSAPP_PHONE_NUMBER_ID",
+  "FIB_ONLINE_DEPOSITS",
+  "FIB_CLIENT_ID",
+  "FIB_CLIENT_SECRET",
+]);
+
+function outboundDisabled(env: Record<string, unknown>) {
+  const flag = env.OUTBOUND_INTEGRATIONS ?? process.env.OUTBOUND_INTEGRATIONS;
+  return flag === "disabled";
+}
+
+/** True when the kill switch is on (shown in admin → Settings). */
+export async function outboundIntegrationsDisabled() {
+  return outboundDisabled((await getEnv()) as unknown as Record<string, unknown>);
+}
 
 const reportedMissing = new Set<string>();
 

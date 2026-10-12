@@ -72,14 +72,32 @@ export type OrderStatus = (typeof ORDER_STATUSES)[number];
 export const PAYMENT_METHODS = ["COD"] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
-export const PAYMENT_STATUSES = ["PENDING", "PAID", "REFUNDED"] as const;
+/**
+ * PENDING: not received (or not yet verified). PAID: an authorized admin
+ * verified receipt (payment_verifications row, enforced by trigger, migration
+ * 0005). DISPUTED: staff could not confirm the customer's claim. REFUNDED: a
+ * refund was arranged outside the system and recorded by staff.
+ */
+export const PAYMENT_STATUSES = ["PENDING", "PAID", "DISPUTED", "REFUNDED"] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 
 /** Insurance-deposit state, separate from the cash-on-delivery balance. */
 export const DEPOSIT_STATUSES = ["NOT_REQUIRED", "AWAITING", "SUBMITTED", "VERIFIED"] as const;
 export type DepositStatus = (typeof DEPOSIT_STATUSES)[number];
 
-/** Manual transfer methods for deposits. No payment API is integrated. */
+/**
+ * Payment verification ledger (append-only). DEPOSIT: the 30% upfront
+ * deposit. FULL: the outstanding order amount (total minus a verified deposit).
+ */
+export const PAYMENT_VERIFICATION_KINDS = ["DEPOSIT", "FULL"] as const;
+export type PaymentVerificationKind = (typeof PAYMENT_VERIFICATION_KINDS)[number];
+export const PAYMENT_VERIFICATION_ACTIONS = ["CONFIRMED", "REJECTED", "DISPUTED", "REFUND_RECORDED"] as const;
+export type PaymentVerificationAction = (typeof PAYMENT_VERIFICATION_ACTIONS)[number];
+/** How the money reached RoboNest.3D, as recorded by the verifying admin. */
+export const PAYMENT_CHANNELS = ["WHATSAPP_TRANSFER", "CASH_ON_DELIVERY", "CASH_IN_PERSON", "LEGACY_REFERENCE"] as const;
+export type PaymentChannel = (typeof PAYMENT_CHANNELS)[number];
+
+/** Manual transfer methods customers may use (instructions are shown with the WhatsApp step). */
 export const DEPOSIT_METHODS = ["FIB", "QICARD", "ZAINCASH"] as const;
 export type DepositMethod = (typeof DEPOSIT_METHODS)[number];
 
@@ -111,7 +129,7 @@ export const CONTACT_DELIVERY_STATUSES = ["SENT", "FAILED", "NOT_CONFIGURED"] as
 
 export const NOTIFICATION_KINDS = ["ORDER_PLACED", "DEPOSIT_SUBMITTED", "DEPOSIT_PAID", "TEST"] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
-export const NOTIFICATION_STATUSES = ["PENDING", "SENDING", "SENT", "FAILED", "NOT_CONFIGURED"] as const;
+export const NOTIFICATION_STATUSES = ["PENDING", "SENDING", "SENT", "FAILED", "NOT_CONFIGURED", "SUPPRESSED"] as const;
 export type NotificationStatus = (typeof NOTIFICATION_STATUSES)[number];
 
 export const PHONE_VERIFICATION_PURPOSES = ["REGISTER", "LOGIN", "RESET"] as const;
@@ -119,6 +137,13 @@ export type PhoneVerificationPurpose = (typeof PHONE_VERIFICATION_PURPOSES)[numb
 
 export const DIGITAL_FORMATS = ["STL", "3MF", "OBJ", "GLB", "ZIP"] as const;
 export type DigitalFormat = (typeof DIGITAL_FORMATS)[number];
+
+/** Preview proxies: only APPROVED rows are ever served publicly. */
+export const PREVIEW_STATUSES = ["PENDING_REVIEW", "APPROVED", "REJECTED"] as const;
+export type PreviewStatus = (typeof PREVIEW_STATUSES)[number];
+/** GENERATED: built from a paid file by the proxy generator. UPLOADED: a proxy made elsewhere. */
+export const PREVIEW_SOURCES = ["GENERATED", "UPLOADED"] as const;
+export type PreviewSource = (typeof PREVIEW_SOURCES)[number];
 
 /** Upper bounds that keep integer money math far from overflow. */
 export const MAX_PRICE_IQD = 100_000_000;

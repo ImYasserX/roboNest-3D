@@ -28,8 +28,9 @@ describe("order status transitions", () => {
 });
 
 describe("permissions", () => {
-  it("grants the super admin everything", () => {
-    for (const p of PERMISSIONS) expect(hasPermission("SUPER_ADMIN", p)).toBe(true);
+  it("grants the super admin everything except confirming payments (Owner-only)", () => {
+    for (const p of PERMISSIONS) expect(hasPermission("SUPER_ADMIN", p)).toBe(p !== "payments.verify");
+    for (const p of PERMISSIONS) expect(hasPermission("OWNER", p)).toBe(true);
   });
   it("denies operations admins sensitive capabilities", () => {
     for (const p of ["admins.manage", "settings.edit", "audit.view", "products.delete", "customers.delete", "categories.delete", "discounts.manage", "analytics.profit"] as const) {

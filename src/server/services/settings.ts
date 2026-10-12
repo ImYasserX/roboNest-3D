@@ -2,24 +2,10 @@ import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { runBatch, type Database } from "@/server/db/client";
 import { siteSettings } from "@/server/db/schema";
-import { normalizeIraqiPhone } from "@/lib/phone";
 import { DEPOSIT_METHODS, type DepositMethod } from "@/lib/domain";
 import { auditInsert, type AuditActor } from "./audit";
 
 const localized = (max: number) => z.object({ en: z.string().trim().max(max), ar: z.string().trim().max(max) });
-const optionalPhone = z
-  .string()
-  .trim()
-  .max(24)
-  .transform((v, ctx) => {
-    if (!v) return "";
-    const p = normalizeIraqiPhone(v);
-    if (!p) {
-      ctx.addIssue({ code: "custom", message: "invalid_phone" });
-      return z.NEVER;
-    }
-    return p;
-  });
 const httpsUrl = z
   .string()
   .trim()
@@ -27,9 +13,8 @@ const httpsUrl = z
   .refine((v) => v === "" || /^https:\/\/[^\s<>"']+$/.test(v), "invalid_url");
 
 export const settingSchemas = {
-  // Email, phone numbers and working hours are fixed in lib/business.ts.
+  // Email, phone numbers, WhatsApp and working hours are fixed in lib/business.ts.
   store: z.object({
-    whatsapp: optionalPhone,
     instagram: httpsUrl,
     facebook: httpsUrl,
     address: localized(200),
@@ -45,9 +30,9 @@ export const settingSchemas = {
   }),
   payments: z.object({
     /**
-     * Manual transfer verification is a TEMPORARY fallback while no online
-     * provider is connected. It only works after an OWNER approves it; the
-     * approval (who and when) is stored here and in the audit log.
+     * HISTORY ONLY: the owner approval of the former "manual transfer
+     * fallback". Since 2026-10-12 every payment is manual (WhatsApp, Owner
+     * verification), so this no longer gates anything; it is kept, not erased.
      */
     manualFallback: z
       .object({ approved: z.boolean(), approvedBy: z.string().max(80).nullable(), approvedAt: z.string().max(40).nullable() })
@@ -69,7 +54,6 @@ export type Settings = { [K in SettingKey]: z.infer<(typeof settingSchemas)[K]> 
 
 export const DEFAULT_SETTINGS: Settings = {
   store: {
-    whatsapp: "",
     instagram: "",
     facebook: "",
     address: { en: "", ar: "" },
@@ -88,7 +72,6 @@ export const DEFAULT_SETTINGS: Settings = {
       { code: "PETG", en: "PETG (tough, heat-resistant)", ar: "PETG (قوي ويتحمل حرارة)" },
       { code: "ABS", en: "ABS (engineering)", ar: "ABS (هندسي)" },
       { code: "TPU", en: "TPU (flexible)", ar: "TPU (مرن)" },
-      { code: "RESIN", en: "Resin (high detail)", ar: "ريزن (تفاصيل دقيقة)" },
     ],
     colors: [
       { code: "BLACK", en: "Black", ar: "أسود" },

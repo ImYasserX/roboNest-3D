@@ -3,12 +3,11 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { readVerifyCookie } from "@/server/auth/current";
 import { getDb } from "@/server/db/client";
 import { describeChallenge } from "@/server/services/phone-verification";
-import { getSetting } from "@/server/services/settings";
 import { getPhoneVerifiers } from "@/server/sms";
-import { whatsappLink } from "@/lib/phone";
+import { BUSINESS, businessWhatsappUrl } from "@/lib/business";
 import { alternates } from "@/lib/seo";
 import { ForgotPhoneForm, NewPasswordWithCodeForm, VerifyCodeForm } from "@/components/account/auth-forms";
-import { ButtonLink, buttonClass } from "@/components/ui/button";
+import { buttonClass } from "@/components/ui/button";
 import { WhatsappIcon } from "@/components/ui/icons";
 import { Card, Container } from "@/components/ui/misc";
 
@@ -23,7 +22,7 @@ export default async function ForgotPasswordPage({ params }: PageProps<"/[locale
   setRequestLocale(locale);
   const [t, tn] = await Promise.all([getTranslations("auth"), getTranslations("nav")]);
   const db = await getDb();
-  const [verifiers, challenge, store] = await Promise.all([getPhoneVerifiers(), describeChallenge(db, await readVerifyCookie()), getSetting(db, "store")]);
+  const [verifiers, challenge] = await Promise.all([getPhoneVerifiers(), describeChallenge(db, await readVerifyCookie())]);
   const verifier = verifiers?.primary ?? null;
   const resetChallenge = challenge?.purpose === "RESET" ? challenge : null;
   return (
@@ -45,15 +44,9 @@ export default async function ForgotPasswordPage({ params }: PageProps<"/[locale
           <>
             {/* No SMS provider yet: staff verify the customer and send a one-time link. */}
             <p className="text-muted">{t("forgotText")}</p>
-            {store.whatsapp ? (
-              <a href={whatsappLink(store.whatsapp, t("forgotMessage"))} target="_blank" rel="noopener noreferrer" className={buttonClass("primary", "lg", "w-full")}>
-                <WhatsappIcon /> {t("forgotCta")}
-              </a>
-            ) : (
-              <ButtonLink href="/contact" size="lg" className="w-full">
-                {tn("contact")}
-              </ButtonLink>
-            )}
+            <a href={businessWhatsappUrl(t("forgotMessage"))} target="_blank" rel="noopener noreferrer" aria-label={tn("whatsappChat", { number: BUSINESS.whatsapp.display })} className={buttonClass("primary", "lg", "w-full")}>
+              <WhatsappIcon /> {t("forgotCta")}
+            </a>
           </>
         )}
       </Card>

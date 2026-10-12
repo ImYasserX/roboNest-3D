@@ -16,14 +16,21 @@ import { adminUsers, categories, deliveryAreas, deliveryZones, discounts, produc
 import { normalizeIraqiPhone } from "@/lib/phone";
 import { hashPassword } from "@/server/auth/password";
 import { encryptString, randomToken } from "@/server/auth/crypto";
-import { addDigitalFile, addProductImage, createProduct, saveOption, saveOptionValue, setPreviewModel, updateImageAlt } from "@/server/services/product-admin";
+import { addDigitalFile, addProductImage, createProduct, saveOption, saveOptionValue, updateImageAlt } from "@/server/services/product-admin";
 import { saveSetting, DEFAULT_SETTINGS } from "@/server/services/settings";
 import { storageKey } from "@/server/storage/file-rules";
 import * as M from "./lib/mesh";
-import { toGlb, toStl } from "./lib/formats";
+import { toStl } from "./lib/formats";
 import { renderMesh } from "./lib/render";
+import { approvePreview, generatePreviewFromFile, uploadPreviewCandidate } from "@/server/services/previews";
+import { buildProxy, writeProxyGlb } from "@/server/preview/proxy";
+
+/** Sample originals of preview products are subdivided to at least this many triangles (like real exports). */
+const PREVIEW_SOURCE_TRIANGLES = 20_000;
 
 const actor = { adminId: null, label: "seed" } as const;
+/** Same, for services that record an admin id (NULL here: no admin performed it). */
+const seedAdmin = { adminId: null as unknown as string, label: "seed" };
 type Rgb = [number, number, number];
 const PURPLE: Rgb = [0.55, 0.25, 0.9];
 const GREY: Rgb = [0.62, 0.64, 0.7];
@@ -380,7 +387,10 @@ const ZONES: [string, string, string, number, number, number][] = [
 
 async function main() {
   const reset = process.argv.includes("--reset");
-  const proxy = await getPlatformProxy<CloudflareEnv>({ configPath: "wrangler.jsonc" });
+  // SEED_PERSIST_TO=<dir> seeds a throwaway local state (same layout as
+  // `wrangler ... --local --persist-to <dir>`) instead of .wrangler/state.
+  const persistTo = process.env.SEED_PERSIST_TO;
+  const proxy = await getPlatformProxy<CloudflareEnv>({ configPath: "wrangler.jsonc", ...(persistTo ? { persist: { path: `${persistTo}/v3` } } : {}) });
   const env = proxy.env;
   const db = createDb(env.DB);
 
@@ -397,8 +407,10 @@ async function main() {
     const superPassword = process.env.SEED_SUPER_ADMIN_PASSWORD || randomToken(15);
     const opsPassword = process.env.SEED_OPS_ADMIN_PASSWORD || randomToken(15);
     await db.insert(adminUsers).values([
-      { username: "owner", displayName: "Store Owner", role: "SUPER_ADMIN", passwordHash: await hashPassword(superPassword), passwordChangedAt: new Date() },
-      { username: "operations", displayName: "Operations", role: "OPERATIONS", passwordHash: await hashPassword(opsPassword), passwordChangedAt: new Date() },
+      // Development-only accounts. They are NOT the real owners (role OWNER,
+      // provisioned only with npm run owner:bootstrap) and must never exist in production.
+      { username: "dev-super", displayName: "Local dev Super Admin", role: "SUPER_ADMIN", passwordHash: await hashPassword(superPassword), passwordChangedAt: new Date() },
+      { username: "dev-ops", displayName: "Local dev Operations", role: "OPERATIONS", passwordHash: await hashPassword(opsPassword), passwordChangedAt: new Date() },
     ]);
 
     // Test automation only: pre-enroll the Super Admin's TOTP with a known secret.
@@ -408,7 +420,29 @@ async function main() {
       await db
         .update(adminUsers)
         .set({ totpEnabled: true, totpSecretEnc: await encryptString(appSecret, "admin-totp", process.env.SEED_SUPER_ADMIN_TOTP_SECRET) })
-        .where(sql`${adminUsers.username} = 'owner'`);
+        .where(sql`${adminUsers.username} = 'dev-super'`);
+    }
+
+    // Test automation only: an OWNER for the isolated E2E database, so tests can
+    // exercise Owner-only payment verification. Refused for the normal local
+    // database (SEED_PERSIST_TO must point elsewhere); real owners are created
+    // only with npm run owner:bootstrap.
+    if (process.env.SEED_E2E_OWNER_PASSWORD && process.env.SEED_E2E_OWNER_TOTP_SECRET) {
+      if (!persistTo || /(^|\/)\.wrangler\/state\/?$/.test(persistTo)) throw new Error("SEED_E2E_OWNER_* is only allowed with SEED_PERSIST_TO pointing to a separate test state folder");
+      const appSecret = env.APP_SECRET;
+      if (!appSecret || appSecret.length < 32) throw new Error("APP_SECRET is required to seed a TOTP secret");
+      const values = {
+        passwordHash: await hashPassword(process.env.SEED_E2E_OWNER_PASSWORD),
+        passwordChangedAt: new Date(),
+        totpEnabled: true,
+        totpSecretEnc: await encryptString(appSecret, "admin-totp", process.env.SEED_E2E_OWNER_TOTP_SECRET),
+        failedLoginCount: 0,
+        lockedUntil: null,
+      };
+      // Owners survive --reset (protection triggers), so reuse the row if it exists.
+      const [existingOwner] = await db.select({ id: adminUsers.id }).from(adminUsers).where(sql`${adminUsers.username} = 'e2e-owner'`).limit(1);
+      if (existingOwner) await db.update(adminUsers).set(values).where(sql`${adminUsers.id} = ${existingOwner.id}`);
+      else await db.insert(adminUsers).values({ username: "e2e-owner", displayName: "E2E test owner", role: "OWNER", ...values });
     }
 
     // Test automation only: a customer whose phone is already verified, because
@@ -421,16 +455,7 @@ async function main() {
 
     // Settings ---------------------------------------------------------------
     for (const key of ["store", "homepage", "customPrint", "payments", "security"] as const) {
-      const value =
-        key === "store" && process.env.SEED_WHATSAPP
-          ? { ...DEFAULT_SETTINGS.store, whatsapp: process.env.SEED_WHATSAPP }
-          : // Test automation only: record an approval of the manual deposit fallback
-            // (methods stay disabled, so high-value orders are still blocked until
-            // an admin enables one). Real approval is an owner action in the admin.
-            key === "payments" && process.env.SEED_MANUAL_DEPOSIT_APPROVED_BY
-            ? { ...DEFAULT_SETTINGS.payments, manualFallback: { approved: true, approvedBy: process.env.SEED_MANUAL_DEPOSIT_APPROVED_BY, approvedAt: new Date().toISOString() } }
-            : DEFAULT_SETTINGS[key];
-      await saveSetting(db, key, value, actor);
+      await saveSetting(db, key, DEFAULT_SETTINGS[key], actor);
     }
 
     // Delivery -----------------------------------------------------------------
@@ -514,16 +539,25 @@ async function main() {
           altAr: `${p.ar}، صورة تجريبية ${i + 1}`,
         });
       }
-      if (p.preview) {
-        const key = storageKey("previews", "glb");
-        await env.MEDIA.put(key, toGlb(mesh, p.color, p.slug), { httpMetadata: { contentType: "model/gltf-binary" } });
-        await setPreviewModel(db, productId, key, actor);
-      }
+      // The "original" design. For preview products it is subdivided so the
+      // sample paid file has a realistic triangle count to reduce from.
+      const original = p.preview ? M.subdivide(mesh, PREVIEW_SOURCE_TRIANGLES) : mesh;
+      let digitalFileId: string | null = null;
       if (p.digital) {
         const key = storageKey("digital", "stl");
-        const stl = toStl(mesh, `RoboNest.3D sample: ${p.slug}`);
+        const stl = toStl(original, `RoboNest.3D sample: ${p.slug}`);
         await env.PRIVATE_FILES.put(key, stl, { httpMetadata: { contentType: "model/stl" } });
-        await addDigitalFile(db, productId, { key, filename: `${p.slug}.stl`, extension: "stl", sizeBytes: stl.byteLength }, { adminId: null as unknown as string, label: "seed" });
+        digitalFileId = await addDigitalFile(db, productId, { key, filename: `${p.slug}.stl`, extension: "stl", sizeBytes: stl.byteLength }, seedAdmin);
+      }
+      if (p.preview) {
+        // Interactive preview: a separate reduced proxy (never the paid file),
+        // generated from the paid STL when there is one, then approved.
+        const made = digitalFileId
+          ? await generatePreviewFromFile(db, env, productId, digitalFileId, seedAdmin)
+          : await uploadPreviewCandidate(db, env, productId, writeProxyGlb(buildProxy(original).mesh), seedAdmin);
+        if (!made.ok) throw new Error(`${p.slug}: preview ${made.error} ${made.reasons?.join(",") ?? ""}`);
+        const approved = await approvePreview(db, env, made.id, seedAdmin);
+        if (!approved.ok) throw new Error(`${p.slug}: approve ${approved.error}`);
       }
 
       for (const [oi, o] of (p.options ?? []).entries()) {
@@ -558,8 +592,9 @@ async function main() {
     }
 
     console.log("\nSeed complete. Admin accounts (store these now; they are not shown again):");
-    console.log(`  Super Admin  → username: owner       password: ${superPassword}`);
-    console.log(`  Operations   → username: operations  password: ${opsPassword}`);
+    console.log(`  Local dev Super Admin → username: dev-super  password: ${superPassword}`);
+    console.log(`  Local dev Operations  → username: dev-ops    password: ${opsPassword}`);
+    console.log("  (Development only. Real owners: npm run owner:bootstrap, see docs/LOCAL_DEVELOPMENT.md.)");
     console.log("  The Super Admin must enroll TOTP on first sign-in. Discount code for testing: WELCOME10");
   } finally {
     await proxy.dispose();
@@ -568,7 +603,7 @@ async function main() {
 
 async function wipe(db: Database, env: CloudflareEnv) {
   const tables = [
-    "notification_events", "phone_verifications", "audit_logs", "rate_limits", "site_settings", "contact_messages", "wishlist_items", "custom_print_requests",
+    "notification_events", "phone_verifications", "product_turntable_frames", "preview_models", "payment_verifications", "deposit_payments", "audit_logs", "rate_limits", "site_settings", "contact_messages", "wishlist_items", "custom_print_requests",
     "order_status_history", "order_items", "orders", "cart_items", "carts", "uploads", "discounts",
     "addresses", "delivery_areas", "delivery_zones", "digital_files", "product_relations", "product_option_values",
     "product_options", "product_images", "products", "categories", "password_reset_tokens", "sessions", "users",

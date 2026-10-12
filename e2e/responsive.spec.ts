@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const WIDTHS = [375, 390, 768, 1024, 1440];
-const PAGES = ["", "/products", "/products/rover-chassis-plate", "/cart", "/custom-printing", "/checkout", "/delivery"];
+const PAGES = ["", "/products", "/products/rover-chassis-plate", "/products/planetary-gearbox-model", "/cart", "/custom-printing", "/checkout", "/delivery", "/about", "/terms"];
 
 // Fails on any horizontal page overflow; saves screenshots for manual review.
 for (const locale of ["ar", "en"]) {

@@ -80,13 +80,13 @@ PENDING ────────────────────────
    └─ CANCELLED (from any pre-delivery state, including the deposit stages)            (retry/return/cancel)    → RETURNED
 ```
 
-The deposit steps are not part of the generic admin status change: `submitDeposit` (customer, token or owner), `verifyDeposit` / `rejectDeposit` (`deposits.verify`) in `src/server/services/deposits.ts`. A trigger (`orders_deposit_gate`) blocks any status update that would skip an unverified required deposit. Side effects: `DELIVERED` sets COD payment to `PAID`; `CANCELLED`/`RETURNED` restore stock and `CANCELLED` releases the discount use. Every change writes `order_status_history` and an audit log entry.
+Payment decisions are not part of the generic admin status change: `confirmPayment` / `disputePayment` / `recordRefund` in `src/server/services/payment-verification.ts` (permission `payments.verify`, Owners only) write the append-only `payment_verifications` ledger; triggers (migration 0005) make PAID / VERIFIED impossible without it, and `orders_deposit_gate` blocks any status update that would skip an unverified required deposit. Side effects: `CANCELLED`/`RETURNED` restore stock and `CANCELLED` releases the discount use. `DELIVERED` never changes the payment status. Every change writes `order_status_history` and an audit log entry.
 
 ### Delivery and deposits
 
 - `src/lib/payment-rules.ts`: `FLAT_DELIVERY_FEE_IQD = 5000` for every active zone/area (zones and areas only decide where we deliver), `DEPOSIT_THRESHOLD_IQD = 50000`, compared with **subtotal − discount, excluding delivery**, strictly greater than; the deposit is `floor(base × 30 / 100)`. Migration 0002 triggers enforce the same formula on every order insert and forbid later changes.
-- A deposit can be paid online (FIB adapter, `src/server/integrations/fib.ts`, `services/online-deposits.ts`, disabled until configured) or, while owners approve it, by manual transfer verification (`payments.manualFallback` setting). With neither available, high-value orders are refused. Details: [docs/PAYMENTS.md](docs/PAYMENTS.md).
-- The deposit is part of the order total; the balance is cash on delivery.
+- Every payment (deposit, full payment, balance) is arranged with the customer on WhatsApp and confirmed by an Owner; `src/lib/payment-due.ts` derives what is due, the amount and the WhatsApp text from the order row. The FIB adapter was retired. Details: [docs/PAYMENTS.md](docs/PAYMENTS.md).
+- The deposit is part of the order total; the balance is paid on delivery (physical) or via WhatsApp before downloads unlock (digital).
 
 ### Notifications
 
@@ -113,13 +113,21 @@ Customer uploads (streamed, sniffed, size‑limited) → request `SUBMITTED` →
 
 Files live in `PRIVATE_FILES`. `/api/downloads/{orderItemId}/{fileId}` checks the session, order ownership, `payment_status = PAID`, that the order was not cancelled or returned, that the file belongs to the purchased product and is active, and a per‑item cap of 25 downloads (atomic increment). It then streams the object as an attachment. No signed or public URL exists, and R2 credentials never exist in the app (bindings only).
 
-For digital‑only orders the payment method is still COD by design: staff arrange payment and mark the order paid, which unlocks the downloads. The checkout says so explicitly.
+For digital orders the customer pays via WhatsApp before download; an Owner confirms the payment (payments.verify), which unlocks the downloads. The checkout and order page say so explicitly.
+
+## Admin UI
+
+- **Shell** (`app/[locale]/admin/(panel)/layout.tsx`): grouped sidebar (Overview, Sales, Catalog, People, Operations, Website, Security), each entry shown only for roles holding its permission; a no-JavaScript collapsible menu below `lg`; skip link; theme (dark charcoal by default, light on request) and language switches. `.admin-shell` in `globals.css` tunes tokens for the admin only (teal success, darker canvas); the storefront is unchanged.
+- **Building blocks** (`components/admin/ui.tsx`, `table.tsx`, `stat.tsx`, `confirm-dialog.tsx`): page header with breadcrumbs, URL-based tabs, GET filter bar (works without JavaScript), pagination with "x–y of n", panels, empty states, a loading skeleton (`(panel)/loading.tsx`), and a native `<dialog>` for every consequential decision. Tables become labelled cards on phones.
+- **Bulk products** (`components/admin/product-bulk-manager.tsx`, `services/product-bulk.ts`): select rows, a page, or "all matching" (the server re-resolves the filters, max 200); edit only ticked fields after a review step; all-or-nothing validation with the product editor's rules and one atomic batch; delete shows per-product consequences, needs `DELETE` typed, deletes only never-ordered products and archives the rest (history, payments and buyers' entitlements kept).
+- **Digital files** (`components/admin/file-bulk-manager.tsx`, `services/digital-file-admin.ts`): paid originals and 3D preview proxies are separate tabs. Bulk activate/deactivate (deactivating files with entitled buyers needs an acknowledgement), delete only files of never-ordered products, rename the download name (extension fixed). No action can make a paid file public.
+- **Payments** (`app/[locale]/admin/(panel)/payments`, `components/admin/payment-panel.tsx`): the Owner verification queue (see docs/PAYMENTS.md).
 
 ## Rendering, caching, performance
 
 - **All pages render per request** (`dynamic = "force-dynamic"` on the locale layout). Prices, stock, sessions, and carts are live data, and OpenNext without an R2/KV incremental cache cannot revalidate static pages. The build never touches the database. Enabling ISR later requires an OpenNext cache binding and careful exclusion of personalized pages.
 - Server Components by default. Client components are limited to the configurator, gallery, forms, menus, and charts.
-- `<model-viewer>` (~1 MB) and the GLB file load **only when the visitor asks** for the 3D preview.
+- `<model-viewer>` (~1 MB) and the approved preview proxy (typically 30 to 70 KB, served by `/api/previews/[id]`, never a paid file) load **only when the visitor asks** for the 3D preview. See SECURITY.md, "3D model protection".
 - Images: `next/image` with a custom loader (`src/lib/image-loader.ts`). With `NEXT_PUBLIC_IMAGE_TRANSFORMS=cloudflare`, requests go through Cloudflare Image Transformations (resize plus AVIF/WebP negotiation) from the R2 original. OpenNext's built‑in optimizer only reads static assets, not the R2‑backed `/media` route. Media keys are random UUIDs, so responses are cached `immutable` for a year. All product imagery sits in fixed aspect‑ratio boxes, so CLS was measured at 0.
 - Lists are paginated server‑side (24 per page storefront, 25 admin). Admin tables never load all rows.
 - Search is `LIKE` over a normalized EN+AR `search_text` column (Arabic letter variants and diacritics folded) with escaped wildcards. That is adequate for hundreds or low thousands of products. FTS5 is supported by D1 but was avoided because virtual tables complicate `wrangler d1 export` backups.
@@ -148,7 +156,7 @@ Next 16 renames `middleware.ts` to `proxy.ts` and runs the proxy on the Node run
 3. Enable **Image Transformations** on the zone and build with `NEXT_PUBLIC_IMAGE_TRANSFORMS=cloudflare`.
 4. `npx wrangler d1 migrations apply robonest-3d --remote`.
 5. Provision the two owners with `npm run owner:bootstrap -- yasser` and `-- ayman` (README → Owner accounts), each run by that owner. Other staff accounts: `npm run admin:create` (writes `.admin-insert.sql` with only the PBKDF2 hash), or from admin → Admin users. Never run `db:seed` against production. Owners and Super Admins enroll TOTP at first sign‑in.
-5a. Set `RESEND_API_KEY`, `CONTACT_FORM_EMAIL`, `CONTACT_FROM_EMAIL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_IDS`, and the Twilio Verify secrets (README → Environment). In the admin, set the approved deposit amount and transfer instructions (Payments).
+5a. Set `RESEND_API_KEY`, `CONTACT_FORM_EMAIL`, `CONTACT_FROM_EMAIL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_IDS`, and the Twilio Verify secrets (README → Environment). Optionally, in admin → Payments, add the transfer details customers see next to the WhatsApp payment step.
 6. In the admin: review the supported delivery locations, WhatsApp number, homepage copy, custom‑print materials, and real products and photos. Delete or archive the sample products.
 7. `npm run cf:build`, then deploy (`npx opennextjs-cloudflare deploy`), then attach the custom domain.
 8. Post‑deploy smoke test: E2E suite with `E2E_BASE_URL` pointed at a staging copy (it reseeds, so **never** run it against production data).

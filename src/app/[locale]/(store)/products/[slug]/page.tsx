@@ -5,11 +5,11 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getCurrentUser } from "@/server/auth/current";
 import { getDb } from "@/server/db/client";
 import { wishlistItems } from "@/server/db/schema";
-import { getEnv, getSiteUrl } from "@/server/env";
+import { getSiteUrl } from "@/server/env";
 import { getProductBySlug, getRelatedProducts } from "@/server/services/catalog";
 import { isPurchasable } from "@/lib/pricing";
 import { typeHasDigital } from "@/lib/domain";
-import { formatBytes, mediaUrl, pick, pickText } from "@/lib/localize";
+import { mediaUrl, pick, pickText } from "@/lib/localize";
 import { alternates } from "@/lib/seo";
 import { ProductGrid } from "@/components/catalog/product-card";
 import { ProductConfigurator } from "@/components/product/product-configurator";
@@ -72,7 +72,7 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
   const data = await getProductBySlug(db, slug);
   if (!data) notFound();
   const { product: p, images, options, category, parentCategory, digitalFormats, price } = data;
-  const [t, tc, ts, tcat, user, related, siteUrl, env] = await Promise.all([
+  const [t, tc, ts, tcat, user, related, siteUrl] = await Promise.all([
     getTranslations("product"),
     getTranslations("common"),
     getTranslations("status"),
@@ -80,10 +80,8 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
     getCurrentUser(),
     getRelatedProducts(db, p.id, p.categoryId),
     getSiteUrl(),
-    getEnv(),
   ]);
   const saved = user ? (await db.$count(wishlistItems, and(eq(wishlistItems.userId, user.id), eq(wishlistItems.productId, p.id)))) > 0 : false;
-  const previewObject = p.previewModelKey ? await env.MEDIA.head(p.previewModelKey) : null;
 
   const name = pick(locale, p.nameEn, p.nameAr);
   const summary = pick(locale, p.summaryEn, p.summaryAr);
@@ -155,8 +153,8 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
         <ProductGallery
           name={name}
           images={images.map((i) => ({ src: mediaUrl(i.r2Key), alt: pick(locale, i.altEn, i.altAr) || name, width: i.width, height: i.height }))}
-          previewSrc={p.previewModelKey ? mediaUrl(p.previewModelKey) : undefined}
-          previewSize={previewObject ? formatBytes(previewObject.size, locale) : undefined}
+          // Rendered image frames only; no model file or geometry is sent to the browser.
+          preview={data.preview}
         />
 
         <div className="space-y-6">

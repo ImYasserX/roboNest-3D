@@ -3,9 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import { notificationEvents, orders, orderStatusHistory } from "@/server/db/schema";
 import { addToCart } from "@/server/services/cart";
 import { changeOrderStatus } from "@/server/services/admin-orders";
-import { rejectDeposit, submitDeposit, verifyDeposit } from "@/server/services/deposits";
 import { placeOrder } from "@/server/services/orders";
-import { saveSetting } from "@/server/services/settings";
 import { dispatchNotification, dispatchPending, renderNotification, retryNotification } from "@/server/services/notifications";
 import { startPlatform, type TestPlatform } from "../support/platform";
 import { dbError } from "../support/fakes";
@@ -22,58 +20,25 @@ beforeAll(async () => {
 });
 afterAll(async () => p?.dispose());
 
-/** approved: owners approved the manual fallback; fib: the FIB transfer method is enabled. */
-async function configureDeposits(approved: boolean, fib = true) {
-  await saveSetting(
-    p.db,
-    "payments",
-    {
-      manualFallback: approved ? { approved: true, approvedBy: "Yasser Elyas", approvedAt: new Date().toISOString() } : { approved: false, approvedBy: null, approvedAt: null },
-      methods: {
-        FIB: { enabled: fib, instructions: { en: "FIB 0000", ar: "FIB 0000" } },
-        QICARD: { enabled: false, instructions: { en: "", ar: "" } },
-        ZAINCASH: { enabled: false, instructions: { en: "", ar: "" } },
-      },
-    },
-    { adminId: null, label: "test" },
-  );
-}
-
 async function orderWithSubtotal(subtotal: number) {
   const product = await makeProduct(p.db, { basePrice: subtotal });
   const zone = await makeZone(p.db, { fee: 9_000 }); // legacy fee: must be ignored
   const owner = visitor();
   await addToCart(p.db, owner, { productId: product.id, quantity: 1, options: {} });
-  return placeOrder(p.db, { ...checkoutInput(zone.id), total: 1, depositAmount: 0, status: "CONFIRMED" }, { owner, userId: null, appSecret: SECRET });
+  return placeOrder(p.db, { ...checkoutInput(zone.id), total: 1, depositAmount: 0, status: "CONFIRMED", paymentStatus: "PAID" }, { owner, userId: null, appSecret: SECRET });
 }
 
 const load = async (id: string) => (await p.db.select().from(orders).where(eq(orders.id, id)))[0];
 
-describe("high-value orders", () => {
-  it("refuses manual transfer reports unless the owners approved the fallback", async () => {
-    await configureDeposits(true);
-    const r = await orderWithSubtotal(90_000);
-    if (!r.ok) throw new Error(r.error);
-    await configureDeposits(false, true);
-    expect(await submitDeposit(p.db, r.orderId, { method: "FIB", reference: "REF-0001" }, { userId: null, label: "c" })).toEqual({ ok: false, error: "manual_not_approved" });
-    // Without approval (and no online provider), new high-value orders are blocked.
-    expect(await orderWithSubtotal(90_000)).toEqual({ ok: false, error: "deposit_unconfigured" });
-  });
-
-  it("a real online provider alone makes high-value orders payable", async () => {
-    await configureDeposits(false, false);
-    const product = await makeProduct(p.db, { basePrice: 55_555 });
-    const zone = await makeZone(p.db);
-    const owner = visitor();
-    await addToCart(p.db, owner, { productId: product.id, quantity: 1, options: {} });
-    const r = await placeOrder(p.db, checkoutInput(zone.id), { owner, userId: null, appSecret: SECRET, onlineDepositAvailable: true });
+describe("high-value orders (manual WhatsApp deposit)", () => {
+  it("are always payable: no provider or fallback approval is needed any more", async () => {
+    const r = await orderWithSubtotal(55_555);
     if (!r.ok) throw new Error(r.error);
     // floor(55,555 × 30%) = 16,666
-    expect(await load(r.orderId)).toMatchObject({ status: "AWAITING_DEPOSIT", depositAmount: 16_666 });
+    expect(await load(r.orderId)).toMatchObject({ status: "AWAITING_DEPOSIT", depositAmount: 16_666, depositStatus: "AWAITING", paymentStatus: "PENDING" });
   });
 
   it("applies discounts before the threshold and the 30% (delivery never counts)", async () => {
-    await configureDeposits(true);
     const product = await makeProduct(p.db, { basePrice: 60_000 });
     const zone = await makeZone(p.db);
     const owner = visitor();
@@ -94,66 +59,37 @@ describe("high-value orders", () => {
     expect(await dbError(orderWithBadDeposit(p.db, { subtotal: 60_001, depositRequired: true, depositAmount: 18_000 }))).toBe("no error"); // floor(18,000.3)
   });
 
-  it("blocks orders above the threshold while the deposit is not configured", async () => {
-    await configureDeposits(false, false);
-    expect(await orderWithSubtotal(50_001)).toEqual({ ok: false, error: "deposit_unconfigured" });
-    // Exactly 50,000 does not trigger the threshold.
+  it("exactly 50,000 needs no deposit; 50,001 does", async () => {
     const exact = await orderWithSubtotal(50_000);
-    expect(exact.ok).toBe(true);
-    if (exact.ok) expect(await load(exact.orderId)).toMatchObject({ status: "PENDING", depositRequired: false, depositAmount: 0, depositStatus: "NOT_REQUIRED", deliveryFee: 5_000, total: 55_000 });
+    if (!exact.ok) throw new Error(exact.error);
+    expect(await load(exact.orderId)).toMatchObject({ status: "PENDING", depositRequired: false, depositAmount: 0, depositStatus: "NOT_REQUIRED", deliveryFee: 5_000, total: 55_000 });
+    const above = await orderWithSubtotal(50_001);
+    if (!above.ok) throw new Error(above.error);
+    expect(await load(above.orderId)).toMatchObject({ status: "AWAITING_DEPOSIT", depositRequired: true, depositAmount: 15_000 });
   });
 
-  it("starts above-threshold orders in AWAITING_DEPOSIT with the configured amount, ignoring client fields", async () => {
-    await configureDeposits(true);
+  it("starts above-threshold orders in AWAITING_DEPOSIT with the computed amount, ignoring client fields", async () => {
     const r = await orderWithSubtotal(60_000);
-    expect(r.ok).toBe(true);
-    if (!r.ok) return;
-    // 30% of 60,000 (delivery excluded).
+    if (!r.ok) throw new Error(r.error);
+    // 30% of 60,000 (delivery excluded); the client's status/paymentStatus/total are ignored.
     expect(await load(r.orderId)).toMatchObject({ status: "AWAITING_DEPOSIT", depositRequired: true, depositAmount: 18_000, depositStatus: "AWAITING", total: 65_000, deliveryFee: 5_000, paymentStatus: "PENDING" });
   });
 
-  it("only an admin verification confirms; customer submission and direct updates cannot", async () => {
-    await configureDeposits(true);
+  it("the generic status change and raw updates cannot skip the deposit", async () => {
     const r = await orderWithSubtotal(70_000);
     if (!r.ok) throw new Error(r.error);
-    const order = await load(r.orderId);
-
-    // Generic status change cannot confirm an unverified deposit.
-    expect(await changeOrderStatus(p.db, order.id, { to: "CONFIRMED", expectedFrom: "AWAITING_DEPOSIT" }, admin)).toEqual({ ok: false, error: "invalid_transition" });
-    // Neither can a raw UPDATE: the database trigger refuses it.
-    expect(await dbError(p.db.update(orders).set({ status: "CONFIRMED" }).where(eq(orders.id, order.id)))).toMatch(/orders_deposit_unverified/);
-    expect(await dbError(p.db.update(orders).set({ depositAmount: 999_999 }).where(eq(orders.id, order.id)))).toMatch(/orders_deposit_ck|orders_deposit_rule/);
-    expect(await dbError(p.db.update(orders).set({ depositAmount: 1_000 }).where(eq(orders.id, order.id)))).toMatch(/orders_deposit_rule/);
-
-    expect(await submitDeposit(p.db, order.id, { method: "QICARD", reference: "ABC-123" }, { userId: null, label: "c" })).toEqual({ ok: false, error: "method_unavailable" });
-    expect(await submitDeposit(p.db, order.id, { method: "FIB", reference: "x" }, { userId: null, label: "c" })).toEqual({ ok: false, error: "invalid_input" });
-    const sub = await submitDeposit(p.db, order.id, { method: "FIB", reference: "FIB-778899" }, { userId: null, label: "c" });
-    expect(sub.ok).toBe(true);
-    // Submitting is not payment.
-    expect(await load(order.id)).toMatchObject({ status: "DEPOSIT_SUBMITTED", depositStatus: "SUBMITTED", depositReference: "FIB-778899", paymentStatus: "PENDING", depositVerifiedAt: null });
-    expect(await submitDeposit(p.db, order.id, { method: "FIB", reference: "AGAIN-1" }, { userId: null, label: "c" })).toEqual({ ok: false, error: "not_awaiting" });
-    expect(await changeOrderStatus(p.db, order.id, { to: "CONFIRMED", expectedFrom: "DEPOSIT_SUBMITTED" }, admin)).toEqual({ ok: false, error: "invalid_transition" });
-
-    // Reject: back to awaiting, with a note the customer sees.
-    expect(await rejectDeposit(p.db, order.id, admin, "Transfer not found")).toEqual({ ok: true });
-    expect(await load(order.id)).toMatchObject({ status: "AWAITING_DEPOSIT", depositStatus: "AWAITING", depositReference: null });
-    await submitDeposit(p.db, order.id, { method: "FIB", reference: "FIB-778900" }, { userId: null, label: "c" });
-
-    // The admin must type the amount actually received: exactly 30% of 70,000.
-    expect(await verifyDeposit(p.db, order.id, admin)).toEqual({ ok: false, error: "amount_mismatch" });
-    expect(await verifyDeposit(p.db, order.id, admin, undefined, new Date(), 20_000)).toEqual({ ok: false, error: "amount_mismatch" });
-    expect(await verifyDeposit(p.db, order.id, admin, undefined, new Date(), 21_000)).toEqual({ ok: true });
-    expect(await verifyDeposit(p.db, order.id, admin, undefined, new Date(), 21_000)).toEqual({ ok: false, error: "not_awaiting" });
-    expect(await load(order.id)).toMatchObject({ status: "DEPOSIT_VERIFIED", depositStatus: "VERIFIED" });
-    expect(await changeOrderStatus(p.db, order.id, { to: "CONFIRMED", expectedFrom: "DEPOSIT_VERIFIED" }, admin)).toEqual({ ok: true });
-    const history = await p.db.select({ to: orderStatusHistory.toStatus }).from(orderStatusHistory).where(eq(orderStatusHistory.orderId, order.id)).orderBy(orderStatusHistory.createdAt);
-    expect(history.map((h) => h.to)).toEqual(["AWAITING_DEPOSIT", "DEPOSIT_SUBMITTED", "AWAITING_DEPOSIT", "DEPOSIT_SUBMITTED", "DEPOSIT_VERIFIED", "CONFIRMED"]);
-    // Two submissions → two distinct DEPOSIT_SUBMITTED notification events.
-    expect(await p.db.$count(notificationEvents, sql`${notificationEvents.orderId} = ${order.id} AND ${notificationEvents.kind} = 'DEPOSIT_SUBMITTED'`)).toBe(2);
+    expect(await changeOrderStatus(p.db, r.orderId, { to: "CONFIRMED", expectedFrom: "AWAITING_DEPOSIT" }, admin)).toEqual({ ok: false, error: "invalid_transition" });
+    expect(await dbError(p.db.update(orders).set({ status: "CONFIRMED" }).where(eq(orders.id, r.orderId)))).toMatch(/orders_deposit_unverified/);
+    expect(await dbError(p.db.update(orders).set({ depositAmount: 999_999 }).where(eq(orders.id, r.orderId)))).toMatch(/orders_deposit_ck|orders_deposit_rule/);
+    expect(await dbError(p.db.update(orders).set({ depositAmount: 1_000 }).where(eq(orders.id, r.orderId)))).toMatch(/orders_deposit_rule/);
+    // Marking the deposit verified directly is refused without a verification record (migration 0005).
+    expect(await dbError(p.db.update(orders).set({ status: "DEPOSIT_VERIFIED", depositStatus: "VERIFIED" }).where(eq(orders.id, r.orderId)))).toMatch(/deposit_not_verified/);
+    const history = await p.db.select({ to: orderStatusHistory.toStatus }).from(orderStatusHistory).where(eq(orderStatusHistory.orderId, r.orderId));
+    expect(history.map((h) => h.to)).toEqual(["AWAITING_DEPOSIT"]);
+    expect(await p.db.$count(notificationEvents, sql`${notificationEvents.orderId} = ${r.orderId} AND ${notificationEvents.kind} = 'DEPOSIT_SUBMITTED'`)).toBe(0);
   });
 
   it("lets an order awaiting a deposit be cancelled", async () => {
-    await configureDeposits(true);
     const r = await orderWithSubtotal(80_000);
     if (!r.ok) throw new Error();
     expect(await changeOrderStatus(p.db, r.orderId, { to: "CANCELLED", expectedFrom: "AWAITING_DEPOSIT" }, admin)).toEqual({ ok: true });
@@ -164,7 +100,6 @@ describe("Telegram notification outbox", () => {
   const config = { token: "123456:SECRET-BOT-TOKEN", chatIds: ["1111", "2222"], siteUrl: "https://example.test" };
 
   it("creates exactly one event per committed order, also on duplicate submits", async () => {
-    await configureDeposits(true);
     const product = await makeProduct(p.db, { basePrice: 10_000 });
     const zone = await makeZone(p.db);
     const owner = visitor();

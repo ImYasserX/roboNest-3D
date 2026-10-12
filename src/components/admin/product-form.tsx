@@ -1,8 +1,10 @@
 "use client";
 
-import { FormPendingContext, useActionForm } from "@/components/ui/use-action-form";
-
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { FormPendingContext, useActionForm } from "@/components/ui/use-action-form";
+import { Link } from "@/i18n/navigation";
+import { buttonClass } from "@/components/ui/button";
 import { saveProductAction } from "@/server/actions/admin/products";
 import { AVAILABILITY, PRODUCT_STATUSES, PRODUCT_TYPES } from "@/lib/domain";
 import { CheckboxField, SelectField, TextAreaField, TextField } from "@/components/ui/field";
@@ -27,9 +29,23 @@ export function ProductForm({ id, values, categories }: { id?: string; values: V
     <TextField id={name} name={name} label={t(`fields.${name}`)} defaultValue={v(name)} error={err(name)} {...extra} />
   );
   const groups = [...new Set(categories.map((c) => c.group))];
+  // Unsaved-change warning: browsers show their own "leave page?" prompt.
+  const [dirty, setDirty] = useState(false);
+  const [seenState, setSeenState] = useState(state);
+  if (state !== seenState) {
+    // A successful save makes the form clean again (adjusting state during render).
+    setSeenState(state);
+    if (state?.ok) setDirty(false);
+  }
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
 
   return (
-    <FormPendingContext.Provider value={formPending}><form {...formProps} className="space-y-6" noValidate>
+    <FormPendingContext.Provider value={formPending}><form {...formProps} onInput={() => setDirty(true)} className="space-y-6" noValidate>
       {id ? <input type="hidden" name="id" value={id} /> : null}
       {state?.ok ? <Alert tone="success">{tc("saved")}</Alert> : null}
       {state?.error ? <Alert tone="danger">{state.error === "forbidden" || state.error === "unauthorized" ? tc(state.error) : t("errors.invalid_input")}</Alert> : null}
@@ -104,8 +120,10 @@ export function ProductForm({ id, values, categories }: { id?: string; values: V
         <TextAreaField id="seoDescriptionAr" name="seoDescriptionAr" label={t("fields.seoDescriptionAr")} defaultValue={v("seoDescriptionAr")} maxLength={170} rows={2} className="min-h-16" dir="rtl" />
       </fieldset>
 
-      <div className="sticky bottom-0 -mx-4 border-t border-border bg-bg/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-xl sm:border">
+      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center gap-3 border-t border-border bg-surface/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-xl sm:border">
         <SubmitButton size="lg">{t("saveProduct")}</SubmitButton>
+        <Link href="/admin/products" className={buttonClass("ghost", "lg")}>{tc("back")}</Link>
+        {dirty ? <span role="status" className="text-sm text-warning">{t("unsaved")}</span> : null}
       </div>
     </form></FormPendingContext.Provider>
   );

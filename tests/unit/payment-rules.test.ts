@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEPOSIT_RATE_PERCENT, DEPOSIT_THRESHOLD_IQD, FLAT_DELIVERY_FEE_IQD, depositAmountFor, depositBase, requiresDeposit, resolveDepositTerms, type DepositConfig } from "@/lib/payment-rules";
 import { allowedOrderTransitions, canTransitionOrder } from "@/lib/order-status";
 import { canManageAdmin, hasPermission, roleRequiresTotp } from "@/lib/permissions";
-import { nextTheme, parseTheme, themeAttribute } from "@/lib/theme";
+import { DEFAULT_THEME, THEMES, nextTheme, parseTheme } from "@/lib/theme";
 
 const payable: DepositConfig = { onlineAvailable: false, manualAvailable: true };
 const unpayable: DepositConfig = { onlineAvailable: false, manualAvailable: false };
@@ -60,8 +60,11 @@ describe("order state machine with deposits", () => {
 
 describe("owner role", () => {
   it("has every permission, requires TOTP, and is only managed by another owner", () => {
-    for (const p of ["payments.manage", "deposits.verify", "notifications.manage", "admins.manage", "audit.view"] as const) expect(hasPermission("OWNER", p)).toBe(true);
-    expect(hasPermission("OPERATIONS", "deposits.verify")).toBe(false);
+    for (const p of ["payments.manage", "payments.verify", "notifications.manage", "admins.manage", "audit.view"] as const) expect(hasPermission("OWNER", p)).toBe(true);
+    // Payment verification is Owner-only (SUPER_ADMIN_MAY_VERIFY_PAYMENTS = false).
+    expect(hasPermission("SUPER_ADMIN", "payments.verify")).toBe(false);
+    expect(hasPermission("SUPER_ADMIN", "payments.manage")).toBe(true);
+    expect(hasPermission("OPERATIONS", "payments.verify")).toBe(false);
     expect(hasPermission("OPERATIONS", "payments.manage")).toBe(false);
     expect(hasPermission("OPERATIONS", "notifications.manage")).toBe(false);
     expect(roleRequiresTotp("OWNER")).toBe(true);
@@ -73,12 +76,14 @@ describe("owner role", () => {
 });
 
 describe("theme preference", () => {
-  it("parses the cookie safely and cycles system, light, dark", () => {
+  it("has exactly Light and Dark, defaults to Dark, and maps legacy or invalid cookies to Dark", () => {
+    expect(THEMES).toEqual(["light", "dark"]);
+    expect(DEFAULT_THEME).toBe("dark");
     expect(parseTheme("light")).toBe("light");
-    expect(parseTheme("<script>")).toBe("system");
-    expect(parseTheme(undefined)).toBe("system");
-    expect(themeAttribute("system")).toBeUndefined();
-    expect(themeAttribute("dark")).toBe("dark");
-    expect([nextTheme("system"), nextTheme("light"), nextTheme("dark")]).toEqual(["light", "dark", "system"]);
+    expect(parseTheme("dark")).toBe("dark");
+    expect(parseTheme("system")).toBe("dark");
+    expect(parseTheme("<script>")).toBe("dark");
+    expect(parseTheme(undefined)).toBe("dark");
+    expect([nextTheme("light"), nextTheme("dark")]).toEqual(["dark", "light"]);
   });
 });

@@ -41,10 +41,9 @@ function isSameOrigin(request: NextRequest): boolean {
 function buildCsp(nonce: string): string {
   return [
     "default-src 'self'",
-    // 'wasm-unsafe-eval' lets <model-viewer> compile its WebAssembly decoders;
-    // it does not permit JavaScript eval().
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ""}`,
-    // Inline style attributes are used by next/image and <model-viewer>'s shadow DOM.
+    // No WebAssembly is needed since the GLB viewer was removed.
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
+    // Inline style attributes are used by next/image.
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self'",
@@ -62,10 +61,10 @@ function buildCsp(nonce: string): string {
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Payment provider callbacks come from the provider's servers. The handler
-  // trusts nothing in the body: it only re-checks status with the provider.
-  const isProviderCallback = pathname === "/api/payments/fib/callback";
-  if (!SAFE_METHODS.has(request.method) && !isSameOrigin(request) && !isProviderCallback) {
+  // No exemptions: there are no payment-provider callbacks any more (manual
+  // WhatsApp payment verification), so every state-changing request must be
+  // same-origin.
+  if (!SAFE_METHODS.has(request.method) && !isSameOrigin(request)) {
     return new NextResponse("Forbidden", { status: 403 });
   }
 

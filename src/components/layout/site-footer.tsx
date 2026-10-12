@@ -2,8 +2,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getDb } from "@/server/db/client";
 import { getSetting } from "@/server/services/settings";
-import { BUSINESS } from "@/lib/business";
-import { formatIraqiPhone, whatsappLink } from "@/lib/phone";
+import { BUSINESS, businessWhatsappUrl } from "@/lib/business";
 import { pickText } from "@/lib/localize";
 import { Container } from "@/components/ui/misc";
 import { WhatsappIcon } from "@/components/ui/icons";
@@ -58,13 +57,17 @@ export async function SiteFooter() {
             </span>
             <span className="block text-muted">{t("hours")}: {pickText(locale, BUSINESS.hours)}</span>
           </address>
-          {store.whatsapp ? (
-            <a href={whatsappLink(store.whatsapp)} rel="noopener noreferrer" target="_blank" className="inline-flex min-h-11 items-center gap-2 rounded-md border border-border px-3 text-sm font-medium hover:bg-surface-2">
-              <WhatsappIcon size={18} />
-              <span>{tn("contact")}: </span>
-              <span className="ltr-nums">{formatIraqiPhone(store.whatsapp)}</span>
-            </a>
-          ) : null}
+          <a
+            href={businessWhatsappUrl()}
+            rel="noopener noreferrer"
+            target="_blank"
+            aria-label={tn("whatsappChat", { number: BUSINESS.whatsapp.display })}
+            className="inline-flex min-h-11 items-center gap-2 rounded-md border border-border px-3 text-sm font-medium hover:bg-surface-2"
+          >
+            <WhatsappIcon size={18} />
+            <span>WhatsApp: </span>
+            <span className="ltr-nums">{BUSINESS.whatsapp.display}</span>
+          </a>
         </div>
         {columns.map((col) => (
           <nav key={col.title} aria-label={col.title}>
